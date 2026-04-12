@@ -37,10 +37,10 @@ fn setup(
         PanOrbitCamera::default(),
     ));
 
-    spawn_triple_star_system(&mut commands, &mut meshes, &mut materials);
+    spawn_star_system(&mut commands, &mut meshes, &mut materials);
 }
 
-fn spawn_triple_star_system(
+fn spawn_star_system(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -48,49 +48,70 @@ fn spawn_triple_star_system(
     let mut rng = rand::rng();
     let g = 4.0 * PI * PI; // G in AU³/(M☉·yr²)
 
-    // --- Triple star: equilateral triangle in stable circular orbit ---
-    let star_mass: f32 = 100.0;
-    let orbit_radius: f32 = 10.0; // Each star at 10 AU from center
+    // --- Configuration ---
+    let n_stars: usize = 1;
+    let star_mass: f32 = 300.0;
+    let orbit_radius: f32 = 10.0;
 
-    // Circular orbit velocity for 3 equal masses in Lagrange configuration:
-    // v = sqrt(G·M / (√3·R))
-    let v_star = (g * star_mass / (3.0_f32.sqrt() * orbit_radius)).sqrt();
-
-    let star_mesh = meshes.add(Sphere::new(1.5));
+    // --- Stars ---
+    let star_mesh = meshes.add(Sphere::new(2.0));
     let star_colors = [
-        LinearRgba::new(10.0, 8.0, 2.0, 1.0),  // A: golden
-        LinearRgba::new(3.0, 5.0, 12.0, 1.0),   // B: blue-white
-        LinearRgba::new(12.0, 3.0, 2.0, 1.0),   // C: red-orange
+        LinearRgba::new(10.0, 8.0, 2.0, 1.0), // golden
+        LinearRgba::new(3.0, 5.0, 12.0, 1.0),  // blue-white
+        LinearRgba::new(12.0, 3.0, 2.0, 1.0),  // red-orange
+        LinearRgba::new(5.0, 10.0, 3.0, 1.0),  // green
     ];
 
-    for i in 0..3 {
-        let angle = i as f32 * 2.0 * PI / 3.0;
-        let position = Vec3::new(
-            orbit_radius * angle.cos(),
-            0.0,
-            orbit_radius * angle.sin(),
-        );
-        // Tangential velocity (counter-clockwise)
-        let velocity = Vec3::new(-angle.sin(), 0.0, angle.cos()) * v_star;
-
+    if n_stars == 1 {
+        // Single central star at origin
         commands.spawn((
             SimulationBody,
             Mass(star_mass),
-            Velocity(velocity),
+            Velocity(Vec3::ZERO),
             Acceleration::default(),
             Mesh3d(star_mesh.clone()),
             MeshMaterial3d(materials.add(StandardMaterial {
-                emissive: star_colors[i],
+                emissive: star_colors[0],
                 ..default()
             })),
-            Transform::from_translation(position),
+            Transform::from_translation(Vec3::ZERO),
         ));
+    } else {
+        // N stars in circular Lagrange configuration
+        // v = sqrt(G·M·(N-1) / (2·R·sin(π/N))) for N equal masses on a ring
+        let chord_sum: f32 = (1..n_stars)
+            .map(|k| 1.0 / (2.0 * (PI * k as f32 / n_stars as f32).sin()))
+            .sum();
+        let v_star = (g * star_mass * chord_sum / orbit_radius).sqrt();
+
+        for i in 0..n_stars {
+            let angle = i as f32 * 2.0 * PI / n_stars as f32;
+            let position = Vec3::new(
+                orbit_radius * angle.cos(),
+                0.0,
+                orbit_radius * angle.sin(),
+            );
+            let velocity = Vec3::new(-angle.sin(), 0.0, angle.cos()) * v_star;
+
+            commands.spawn((
+                SimulationBody,
+                Mass(star_mass),
+                Velocity(velocity),
+                Acceleration::default(),
+                Mesh3d(star_mesh.clone()),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    emissive: star_colors[i % star_colors.len()],
+                    ..default()
+                })),
+                Transform::from_translation(position),
+            ));
+        }
     }
 
-    // --- Disk bodies orbiting the triple system ---
-    let total_mass = star_mass * 3.0;
+    // --- Disk bodies orbiting the stars ---
+    let total_mass = star_mass * n_stars as f32;
     let body_mass: f32 = 0.1;
-    let n_bodies = 9997;
+    let n_bodies = 10000 - n_stars;
     let r_min: f32 = 20.0;
     let r_max: f32 = 60.0;
 
