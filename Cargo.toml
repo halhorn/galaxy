@@ -6,4 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = "0.18.1"
 bevy_panorbit_camera = "0.34.0"
+bytemuck = { version = "1.25.0", features = ["derive"] }
+pollster = "0.4.0"
 rand = "0.10.1"
+wgpu = "27"

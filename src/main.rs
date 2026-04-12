@@ -90,7 +90,7 @@ fn spawn_triple_star_system(
     // --- Disk bodies orbiting the triple system ---
     let total_mass = star_mass * 3.0;
     let body_mass: f32 = 0.1;
-    let n_bodies = 997;
+    let n_bodies = 9997;
     let r_min: f32 = 20.0;
     let r_max: f32 = 60.0;
 
