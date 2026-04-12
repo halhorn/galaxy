@@ -50,15 +50,15 @@ fn spawn_star_system(
 
     // --- Configuration ---
     let n_stars: usize = 2;
-    let star_mass: f32 = 20.0;
+    let star_mass: f32 = 1.0;
     let star_orbit_radius: f32 = 10.0;
     let n_disk_bodies: usize = 10000;
     let disk_body_mass: f32 = 0.1;
-    let disk_r_min: f32 = 20.0;
+    let disk_r_min: f32 = 5.0;
     let disk_r_max: f32 = 60.0;
     let disk_height: f32 = 0.5;
     let initial_v_perturbation: f32 = 0.05;
-    let orbital_speed_factor: f32 = 3.0;
+    let orbital_speed_factor: f32 = 2.0;
 
     // --- Stars ---
     let star_radius = radius_from_mass(star_mass);

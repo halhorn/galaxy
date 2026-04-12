@@ -6,7 +6,7 @@ use super::components::*;
 
 /// Fraction of combined radii at which bodies merge.
 /// 1.0 = surface touch, 0.1 = must overlap to 10% of combined radii.
-const MERGE_RADIUS_FACTOR: f32 = 0.1;
+const MERGE_RADIUS_FACTOR: f32 = 0.2;
 
 /// Spatial grid cell index.
 type CellKey = (i32, i32, i32);
