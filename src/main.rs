@@ -50,35 +50,29 @@ fn spawn_star_system(
 
     // --- Configuration ---
     let n_stars: usize = 1;
-    let star_mass: f32 = 300.0;
+    let star_mass: f32 = 100.0;
     let orbit_radius: f32 = 10.0;
 
     // --- Stars ---
-    let star_mesh = meshes.add(Sphere::new(2.0));
-    let star_colors = [
-        LinearRgba::new(10.0, 8.0, 2.0, 1.0), // golden
-        LinearRgba::new(3.0, 5.0, 12.0, 1.0),  // blue-white
-        LinearRgba::new(12.0, 3.0, 2.0, 1.0),  // red-orange
-        LinearRgba::new(5.0, 10.0, 3.0, 1.0),  // green
-    ];
+    let star_radius = radius_from_mass(star_mass);
+    let star_mesh = meshes.add(Sphere::new(star_radius));
+    let star_material = materials.add(StandardMaterial {
+        emissive: color_from_mass(star_mass),
+        ..default()
+    });
 
     if n_stars == 1 {
-        // Single central star at origin
         commands.spawn((
             SimulationBody,
             Mass(star_mass),
+            Radius(star_radius),
             Velocity(Vec3::ZERO),
             Acceleration::default(),
             Mesh3d(star_mesh.clone()),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                emissive: star_colors[0],
-                ..default()
-            })),
+            MeshMaterial3d(star_material.clone()),
             Transform::from_translation(Vec3::ZERO),
         ));
     } else {
-        // N stars in circular Lagrange configuration
-        // v = sqrt(G·M·(N-1) / (2·R·sin(π/N))) for N equal masses on a ring
         let chord_sum: f32 = (1..n_stars)
             .map(|k| 1.0 / (2.0 * (PI * k as f32 / n_stars as f32).sin()))
             .sum();
@@ -96,13 +90,11 @@ fn spawn_star_system(
             commands.spawn((
                 SimulationBody,
                 Mass(star_mass),
+                Radius(star_radius),
                 Velocity(velocity),
                 Acceleration::default(),
                 Mesh3d(star_mesh.clone()),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    emissive: star_colors[i % star_colors.len()],
-                    ..default()
-                })),
+                MeshMaterial3d(star_material.clone()),
                 Transform::from_translation(position),
             ));
         }
@@ -115,9 +107,10 @@ fn spawn_star_system(
     let r_min: f32 = 20.0;
     let r_max: f32 = 60.0;
 
-    let body_mesh = meshes.add(Sphere::new(0.3));
+    let body_radius = radius_from_mass(body_mass);
+    let body_mesh = meshes.add(Sphere::new(body_radius));
     let body_material = materials.add(StandardMaterial {
-        emissive: LinearRgba::new(1.5, 2.0, 4.0, 1.0),
+        emissive: color_from_mass(body_mass),
         ..default()
     });
 
@@ -135,6 +128,7 @@ fn spawn_star_system(
         commands.spawn((
             SimulationBody,
             Mass(body_mass),
+            Radius(body_radius),
             Velocity(velocity),
             Acceleration::default(),
             Mesh3d(body_mesh.clone()),

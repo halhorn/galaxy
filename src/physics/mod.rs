@@ -2,12 +2,14 @@ pub mod components;
 pub mod force;
 pub mod gpu_force;
 pub mod integrator;
+pub mod merger;
 
 use bevy::prelude::*;
 
 use force::NewtonianGravity;
 use gpu_force::GpuForceCalculator;
 use integrator::*;
+use merger::*;
 
 /// Bevy plugin that runs the N-body gravity simulation.
 /// Attempts GPU compute first, falls back to CPU if unavailable.
@@ -29,6 +31,6 @@ impl Plugin for PhysicsPlugin {
 
         app.insert_resource(ActiveForce(force_calculator))
             .insert_resource(SimulationConfig::default())
-            .add_systems(FixedUpdate, velocity_verlet_step);
+            .add_systems(FixedUpdate, (velocity_verlet_step, merge_colliding_bodies).chain());
     }
 }
