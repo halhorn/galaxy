@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use galaxy::physics::PhysicsPlugin;
 
 fn main() {
     App::new()
@@ -10,6 +11,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugins(PhysicsPlugin)
         .add_systems(Startup, setup)
         .run();
 }
