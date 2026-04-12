@@ -30,7 +30,7 @@ pub fn radius_from_mass(mass: f32) -> f32 {
 /// Compute emissive color from mass.
 /// Small: cool blue, medium: bright cyan/white, large: intense red.
 pub fn color_from_mass(mass: f32) -> LinearRgba {
-    let t = (mass.log10() + 1.0) / 4.0; // maps 0.1→0, 1000→1
+    let t = (mass.log10() + 1.0) / 3.0; // maps 0.1→0, 100→1
     let t = t.clamp(0.0, 1.0);
 
     let brightness = 1.5 + t * 14.0; // 1.5..15.5
