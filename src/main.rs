@@ -51,9 +51,14 @@ fn spawn_star_system(
     // --- Configuration ---
     let n_stars: usize = 2;
     let star_mass: f32 = 20.0;
-    let orbit_radius: f32 = 10.0;
-    let initial_v_perturbation: f32 = 0.05; // 5% random velocity spread
-    let orbital_speed_factor: f32 = 3.0; // multiplier for circular orbit speed
+    let star_orbit_radius: f32 = 10.0;
+    let n_disk_bodies: usize = 10000;
+    let disk_body_mass: f32 = 0.1;
+    let disk_r_min: f32 = 20.0;
+    let disk_r_max: f32 = 60.0;
+    let disk_height: f32 = 0.5;
+    let initial_v_perturbation: f32 = 0.05;
+    let orbital_speed_factor: f32 = 3.0;
 
     // --- Stars ---
     let star_radius = radius_from_mass(star_mass);
@@ -78,14 +83,14 @@ fn spawn_star_system(
         let chord_sum: f32 = (1..n_stars)
             .map(|k| 1.0 / (2.0 * (PI * k as f32 / n_stars as f32).sin()))
             .sum();
-        let v_star = (g * star_mass * chord_sum / orbit_radius).sqrt();
+        let v_star = (g * star_mass * chord_sum / star_orbit_radius).sqrt();
 
         for i in 0..n_stars {
             let angle = i as f32 * 2.0 * PI / n_stars as f32;
             let position = Vec3::new(
-                orbit_radius * angle.cos(),
+                star_orbit_radius * angle.cos(),
                 0.0,
-                orbit_radius * angle.sin(),
+                star_orbit_radius * angle.sin(),
             );
             let velocity = Vec3::new(-angle.sin(), 0.0, angle.cos()) * v_star;
 
@@ -102,25 +107,22 @@ fn spawn_star_system(
         }
     }
 
-    // --- Disk bodies orbiting the stars ---
+    // --- Disk bodies ---
     let total_mass = star_mass * n_stars as f32;
-    let body_mass: f32 = 0.1;
-    let n_bodies = 10000 - n_stars;
-    let r_min: f32 = 20.0;
-    let r_max: f32 = 60.0;
+    let n_bodies = n_disk_bodies - n_stars;
 
-    let body_radius = radius_from_mass(body_mass);
+    let body_radius = radius_from_mass(disk_body_mass);
     let body_mesh = meshes.add(Sphere::new(body_radius));
     let body_material = materials.add(StandardMaterial {
-        emissive: color_from_mass(body_mass),
+        emissive: color_from_mass(disk_body_mass),
         ..default()
     });
 
     for _ in 0..n_bodies {
         let u: f32 = rng.random_range(0.0..1.0);
-        let r = (r_min * r_min + u * (r_max * r_max - r_min * r_min)).sqrt();
+        let r = (disk_r_min * disk_r_min + u * (disk_r_max * disk_r_max - disk_r_min * disk_r_min)).sqrt();
         let theta: f32 = rng.random_range(0.0..2.0 * PI);
-        let height: f32 = rng.random_range(-0.5..0.5);
+        let height: f32 = rng.random_range(-disk_height..disk_height);
 
         let position = Vec3::new(r * theta.cos(), height, r * theta.sin());
 
@@ -134,7 +136,7 @@ fn spawn_star_system(
 
         commands.spawn((
             SimulationBody,
-            Mass(body_mass),
+            Mass(disk_body_mass),
             Radius(body_radius),
             Velocity(velocity),
             Acceleration::default(),
