@@ -49,9 +49,11 @@ fn spawn_star_system(
     let g = 4.0 * PI * PI; // G in AU³/(M☉·yr²)
 
     // --- Configuration ---
-    let n_stars: usize = 1;
-    let star_mass: f32 = 100.0;
+    let n_stars: usize = 2;
+    let star_mass: f32 = 20.0;
     let orbit_radius: f32 = 10.0;
+    let initial_v_perturbation: f32 = 0.05; // 5% random velocity spread
+    let orbital_speed_factor: f32 = 3.0; // multiplier for circular orbit speed
 
     // --- Stars ---
     let star_radius = radius_from_mass(star_mass);
@@ -122,8 +124,13 @@ fn spawn_star_system(
 
         let position = Vec3::new(r * theta.cos(), height, r * theta.sin());
 
-        let v_mag = (g * total_mass / r).sqrt();
-        let velocity = Vec3::new(-theta.sin(), 0.0, theta.cos()) * v_mag;
+        let v_mag = (g * total_mass / r).sqrt() * orbital_speed_factor;
+        let vr = v_mag * rng.random_range(-initial_v_perturbation..initial_v_perturbation);
+        let vt = v_mag * (1.0 + rng.random_range(-initial_v_perturbation..initial_v_perturbation));
+        let vy = v_mag * rng.random_range(-initial_v_perturbation..initial_v_perturbation);
+        let tangent = Vec3::new(-theta.sin(), 0.0, theta.cos());
+        let radial = Vec3::new(theta.cos(), 0.0, theta.sin());
+        let velocity = tangent * vt + radial * vr + Vec3::Y * vy;
 
         commands.spawn((
             SimulationBody,
