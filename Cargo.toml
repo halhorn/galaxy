@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.18.1"
+bevy_panorbit_camera = "0.34.0"
+rand = "0.10.1"

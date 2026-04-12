@@ -19,24 +19,15 @@ impl Plugin for PhysicsPlugin {
     }
 }
 
-/// Bundle for spawning a simulation body.
-#[derive(Bundle)]
-pub struct SimulationBodyBundle {
-    pub body: SimulationBody,
-    pub mass: Mass,
-    pub velocity: Velocity,
-    pub acceleration: Acceleration,
-    pub transform: Transform,
-}
-
-impl SimulationBodyBundle {
-    pub fn new(mass: f32, position: Vec3, velocity: Vec3) -> Self {
-        Self {
-            body: SimulationBody,
-            mass: Mass(mass),
-            velocity: Velocity(velocity),
-            acceleration: Acceleration::default(),
-            transform: Transform::from_translation(position),
-        }
-    }
+/// Spawn a simulation body with the given mass, position, and velocity.
+pub fn spawn_body(commands: &mut Commands, mass: f32, position: Vec3, velocity: Vec3) -> Entity {
+    commands
+        .spawn((
+            SimulationBody,
+            Mass(mass),
+            Velocity(velocity),
+            Acceleration::default(),
+            Transform::from_translation(position),
+        ))
+        .id()
 }
