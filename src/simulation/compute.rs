@@ -147,7 +147,6 @@ fn init_simulation_compute_pipelines(
                 storage_buffer::<Vec<u32>>(false),
                 storage_buffer::<Vec<u32>>(false),
                 storage_buffer::<Vec<u32>>(false),
-                storage_buffer::<Vec<u32>>(false),
                 uniform_buffer::<MergeParams>(false),
             ),
         ),
@@ -244,10 +243,7 @@ fn prepare_simulation_bind_group(
     let Some(merge_bucket_heads) = storage.get(&gpu_buffers.merge_bucket_heads) else {
         return;
     };
-    let Some(merge_bucket_next) = storage.get(&gpu_buffers.merge_bucket_next) else {
-        return;
-    };
-    let Some(merge_absorbed) = storage.get(&gpu_buffers.merge_absorbed) else {
+    let Some(merge_aux) = storage.get(&gpu_buffers.merge_aux) else {
         return;
     };
     let Some(merge_owner) = storage.get(&gpu_buffers.merge_owner) else {
@@ -318,8 +314,7 @@ fn prepare_simulation_bind_group(
             accelerations.buffer.as_entire_buffer_binding(),
             merge_scratch.buffer.as_entire_buffer_binding(),
             merge_bucket_heads.buffer.as_entire_buffer_binding(),
-            merge_bucket_next.buffer.as_entire_buffer_binding(),
-            merge_absorbed.buffer.as_entire_buffer_binding(),
+            merge_aux.buffer.as_entire_buffer_binding(),
             merge_owner.buffer.as_entire_buffer_binding(),
             &merge_uniform,
         )),

@@ -101,7 +101,7 @@ position_step → gravity → velocity_step → merge
 | 問題 | 原因 | 対策 |
 |------|------|------|
 | 極端に遅い | 初版マージが `@workgroup_size(1)` で 10,000 体を 1 スレッド直列処理 | 並列 compute パスへ分割 |
-| 真っ黒画面 | マージ bind group の storage buffer が **13 個**（WebGPU 上限 **10**/stage） | バッファ統合で **9 個**に削減 |
+| 真っ黒画面 | マージ bind group の storage buffer が **13 個**（WebGPU 上限 **8**/stage） | バッファ統合で **8 個**に削減 |
 | 画面ビカビカ・マージ停止 | 2 フレームに 1 回だけマージする間引き | **毎フレームマージ**に戻す（採用しない） |
 | マージが効かない | 固定セルサイズが小さすぎ（`max_radius ≈ 0.5` のみ想定） | `MERGE_MAX_RADIUS = 2.0` で保守的にセル拡大 |
 
@@ -142,18 +142,17 @@ prepare → clear_buckets → init_owner → build_grid → find_owner → apply
 
 ##### WebGPU storage buffer 上限への対応
 
-ブラウザ WebGPU は compute stage あたり storage buffer **最大 10 個**。マージ用に以下へ統合。
+ブラウザ WebGPU は compute stage あたり storage buffer **最大 8 個**（仕様デフォルト。設計も 8 上限）。マージ用に以下へ統合。
 
 | バッファ | 内容 |
 |----------|------|
 | `positions`, `velocities`, `masses`, `accelerations` | シミュレーション本体（読み書き） |
 | `merge_scratch` | `[0..n)` = `vec4(pos.xyz, mass)`、`[n..2n)` = velocity |
 | `merge_bucket_heads` | `atomic<u32>` × 16384 |
-| `merge_bucket_next` | `u32` × n |
-| `merge_absorbed` | `u32` × n |
+| `merge_aux` | `[0..n)` = `bucket_next`、`[n..2n)` = `absorbed` |
 | `merge_owner` | `atomic<u32>` × n |
 
-計 9 個 + uniform（`MergeParams`: `n`, `merge_radius_factor`, `inv_cell_size`, `min_mass`）。
+計 8 個 + uniform（`MergeParams`: `n`, `merge_radius_factor`, `inv_cell_size`, `min_mass`）。
 
 ##### 非活性スロット（マージ後）
 

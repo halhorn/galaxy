@@ -16,10 +16,8 @@ pub struct SimulationGpuBuffers {
     pub accelerations_new: Handle<ShaderStorageBuffer>,
     /// Merge pass: spatial hash bucket heads (`u32::MAX` = empty).
     pub merge_bucket_heads: Handle<ShaderStorageBuffer>,
-    /// Merge pass: intrusive list `next` per body index.
-    pub merge_bucket_next: Handle<ShaderStorageBuffer>,
-    /// Merge pass: absorbed flag per body (0/1).
-    pub merge_absorbed: Handle<ShaderStorageBuffer>,
+    /// Merge pass: `[0..n)` bucket_next, `[n..2n)` absorbed (0/1).
+    pub merge_aux: Handle<ShaderStorageBuffer>,
     /// Merge pass: smallest survivor index `i` per absorbed target `j`.
     pub merge_owner: Handle<ShaderStorageBuffer>,
     /// Merge snapshot: `[0..n)` pos.xyz + mass in w, `[n..2n)` velocity.
@@ -52,16 +50,9 @@ impl SimulationGpuBuffers {
             usage,
             asset_usage,
         ));
-        let merge_bucket_next = buffers.add(storage_buffer(
-            vec![u32::MAX; BODY_COUNT],
-            usage,
-            asset_usage,
-        ));
-        let merge_absorbed = buffers.add(storage_buffer(
-            vec![0u32; BODY_COUNT],
-            usage,
-            asset_usage,
-        ));
+        let mut merge_aux_data = vec![u32::MAX; BODY_COUNT * 2];
+        merge_aux_data[BODY_COUNT..].fill(0);
+        let merge_aux = buffers.add(storage_buffer(merge_aux_data, usage, asset_usage));
         let merge_owner = buffers.add(storage_buffer(
             vec![BODY_COUNT as u32; BODY_COUNT],
             usage,
@@ -80,8 +71,7 @@ impl SimulationGpuBuffers {
             accelerations,
             accelerations_new,
             merge_bucket_heads,
-            merge_bucket_next,
-            merge_absorbed,
+            merge_aux,
             merge_owner,
             merge_scratch,
         }

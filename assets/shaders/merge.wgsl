@@ -1,4 +1,5 @@
-// Parallel merge (≤10 storage buffers for WebGPU). Scratch: [0..n) pos+mass, [n..2n) vel.
+// Parallel merge (≤8 storage buffers for WebGPU). Scratch: [0..n) pos+mass, [n..2n) vel.
+// merge_aux: [0..n) bucket_next, [n..2n) absorbed.
 
 const INVALID: u32 = 0xFFFFFFFFu;
 
@@ -15,10 +16,25 @@ struct Params {
 @group(0) @binding(3) var<storage, read_write> accelerations: array<vec4<f32>>;
 @group(0) @binding(4) var<storage, read_write> scratch: array<vec4<f32>>;
 @group(0) @binding(5) var<storage, read_write> bucket_heads: array<atomic<u32>>;
-@group(0) @binding(6) var<storage, read_write> bucket_next: array<u32>;
-@group(0) @binding(7) var<storage, read_write> absorbed: array<u32>;
-@group(0) @binding(8) var<storage, read_write> merge_owner: array<atomic<u32>>;
-@group(0) @binding(9) var<uniform> params: Params;
+@group(0) @binding(6) var<storage, read_write> merge_aux: array<u32>;
+@group(0) @binding(7) var<storage, read_write> merge_owner: array<atomic<u32>>;
+@group(0) @binding(8) var<uniform> params: Params;
+
+fn bucket_next(i: u32) -> u32 {
+    return merge_aux[i];
+}
+
+fn set_bucket_next(i: u32, value: u32) {
+    merge_aux[i] = value;
+}
+
+fn absorbed(j: u32) -> u32 {
+    return merge_aux[params.n + j];
+}
+
+fn set_absorbed(j: u32, value: u32) {
+    merge_aux[params.n + j] = value;
+}
 
 fn snap_pos(i: u32) -> vec3<f32> {
     return scratch[i].xyz;
@@ -54,7 +70,7 @@ fn cell_coords(pos: vec3<f32>) -> vec3<i32> {
 }
 
 fn mergeable(i: u32, j: u32) -> bool {
-    if (j <= i || absorbed[j] != 0u || snap_mass(j) <= params.min_mass) {
+    if (j <= i || absorbed(j) != 0u || snap_mass(j) <= params.min_mass) {
         return false;
     }
     if (snap_mass(i) <= params.min_mass) {
@@ -76,7 +92,7 @@ fn absorb(i: u32, j: u32) {
     masses[i] = new_mass;
     masses[j] = 0.0;
     accelerations[i] = vec4<f32>(0.0);
-    absorbed[j] = 1u;
+    set_absorbed(j, 1u);
 }
 
 @compute @workgroup_size(256)
@@ -85,8 +101,8 @@ fn prepare(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (i >= params.n) {
         return;
     }
-    absorbed[i] = 0u;
-    bucket_next[i] = INVALID;
+    set_absorbed(i, 0u);
+    set_bucket_next(i, INVALID);
     scratch[i] = vec4<f32>(positions[i].xyz, masses[i]);
     scratch[params.n + i] = velocities[i];
 }
@@ -119,7 +135,7 @@ fn build_grid(@builtin(global_invocation_id) gid: vec3<u32>) {
     let b = hash_cell(c.x, c.y, c.z);
     var prev = atomicLoad(&bucket_heads[b]);
     loop {
-        bucket_next[i] = prev;
+        set_bucket_next(i, prev);
         let result = atomicCompareExchangeWeak(&bucket_heads[b], prev, i);
         if (result.exchanged) {
             break;
@@ -141,7 +157,7 @@ fn find_owner(@builtin(global_invocation_id) gid: vec3<u32>) {
                 let b = hash_cell(c.x + dx, c.y + dy, c.z + dz);
                 var j = atomicLoad(&bucket_heads[b]);
                 while (j != INVALID) {
-                    let j_next = bucket_next[j];
+                    let j_next = bucket_next(j);
                     if (mergeable(i, j)) {
                         atomicMin(&merge_owner[j], i);
                     }
@@ -165,8 +181,8 @@ fn apply_merge(@builtin(global_invocation_id) gid: vec3<u32>) {
                 let b = hash_cell(c.x + dx, c.y + dy, c.z + dz);
                 var j = atomicLoad(&bucket_heads[b]);
                 while (j != INVALID) {
-                    let j_next = bucket_next[j];
-                    if (atomicLoad(&merge_owner[j]) == i && absorbed[j] == 0u && mergeable(i, j)) {
+                    let j_next = bucket_next(j);
+                    if (atomicLoad(&merge_owner[j]) == i && absorbed(j) == 0u && mergeable(i, j)) {
                         absorb(i, j);
                     }
                     j = j_next;
