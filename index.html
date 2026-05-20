@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Galaxy — N-body Gravity Simulator</title>
+    <meta name="description" content="WebGPU で動く 3D N 体重力シミュレータ。">
+    <meta name="theme-color" content="#000000">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+        #galaxy-loading,
+        #galaxy-no-webgpu {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            box-sizing: border-box;
+            background: #000000;
+            color: rgba(255, 255, 255, 0.78);
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            letter-spacing: 0.02em;
+            text-align: center;
+        }
+        #galaxy-loading[hidden],
+        #galaxy-no-webgpu[hidden] {
+            display: none;
+        }
+        #galaxy-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.12);
+            border-top-color: rgba(180, 200, 255, 0.95);
+            border-radius: 50%;
+            animation: galaxy-spin 0.75s linear infinite;
+        }
+        @keyframes galaxy-spin {
+            to { transform: rotate(360deg); }
+        }
+        #galaxy-no-webgpu h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.92);
+        }
+        #galaxy-no-webgpu p {
+            margin: 0;
+            max-width: 28rem;
+        }
+    </style>
+    <script>
+        (function () {
+            if (navigator.gpu) return;
+            document.addEventListener("DOMContentLoaded", function () {
+                var loading = document.getElementById("galaxy-loading");
+                var panel = document.getElementById("galaxy-no-webgpu");
+                if (loading) loading.hidden = true;
+                if (panel) panel.hidden = false;
+            });
+        })();
+    </script>
+</head>
+<body>
+    <div id="galaxy-loading" aria-busy="true" aria-live="polite" aria-label="Loading">
+        <div class="spinner" role="presentation"></div>
+        <span>Loading…</span>
+    </div>
+    <div id="galaxy-no-webgpu" hidden>
+        <h1>WebGPU が必要です</h1>
+        <p>このシミュレータは WebGPU 対応ブラウザ（Chrome / Edge など）でご利用ください。CPU フォールバックはありません。</p>
+    </div>
+    <canvas id="galaxy-canvas"></canvas>
+    <link data-trunk rel="rust" data-cargo-features="webgpu" data-wasm-opt="z" id="galaxy-trunk-rust"/>
+    <script>
+        (function () {
+            if (navigator.gpu) return;
+            var link = document.getElementById("galaxy-trunk-rust");
+            if (link) link.remove();
+        })();
+    </script>
+</body>
+</html>
