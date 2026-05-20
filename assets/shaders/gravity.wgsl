@@ -2,17 +2,19 @@ struct Params {
     n: u32,
     g: f32,
     softening_sq: f32,
+    min_mass: f32,
 }
 
 @group(0) @binding(0) var<storage, read> positions: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read> masses: array<f32>;
-@group(0) @binding(2) var<storage, read_write> accelerations: array<vec4<f32>>;
+@group(0) @binding(2) var<storage, read_write> accelerations_new: array<vec4<f32>>;
 @group(0) @binding(3) var<uniform> params: Params;
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let i = id.x;
-    if (i >= params.n) {
+    if (i >= params.n || masses[i] <= params.min_mass) {
+        accelerations_new[i] = vec4<f32>(0.0);
         return;
     }
 
@@ -20,7 +22,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     var acc = vec3<f32>(0.0, 0.0, 0.0);
 
     for (var j = 0u; j < params.n; j++) {
-        if (j == i) {
+        if (j == i || masses[j] <= params.min_mass) {
             continue;
         }
         let r = positions[j].xyz - pos_i;
@@ -29,5 +31,5 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         acc += r * inv_dist3 * masses[j];
     }
 
-    accelerations[i] = vec4<f32>(acc, 0.0);
+    accelerations_new[i] = vec4<f32>(acc, 0.0);
 }
