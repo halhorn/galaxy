@@ -84,18 +84,95 @@ position_step → gravity → velocity_step → merge
 
 旧実装と同様 **空間ハッシュ** で候補ペアを絞る（全ペア O(N²) は避ける）。
 
-- セルサイズ: `(2 × max_radius × MERGE_RADIUS_FACTOR).max(0.01)`（全活性体の最大半径から算出）
+- セルサイズ: `(2 × max_radius × MERGE_RADIUS_FACTOR).max(0.01)`（仕様）。実装は `max_radius` の代わりに `MERGE_MAX_RADIUS` 定数を使用（高速化メモ参照）
 - 各体をセルに登録し、同一セルおよび隣接 27 セル内のペアのみ距離判定
 - 同一フレームで複数マージが起きうる。旧実装は `absorbed[]` で吸収済みをスキップし、`i` 側に連続マージしうる
 
-#### GPU 実装方針（参考。Task 5 の受け入れには含めない）
+#### GPU 実装（`assets/shaders/merge.wgsl`）
 
-コード構成は自由。例:
+完全 GPU 化。CPU readback なし。`src/simulation/compute.rs` の render graph node が積分後にマージパスを dispatch する。
 
-- **Compute パス** `merge.wgsl`: 空間グリッド構築 + 衝突解決（アトミックまたはソート済みペア）
-- **CPU フォールバック**: 低頻度 readback + 旧アルゴリズム相当（初版プロトタイプ用）
+#### 実装: マージ高速化
 
-いずれにせよ、**毎フレームの全 positions readback を恒常運用しない**方針（Phase 2 全体方針）は維持。マージ用の限定 readback は許容するか、完全 GPU 化するかは実装時に決定。
+マージ追加後に FPS が大きく落ちたため、以下を実装した。
+
+##### 問題と対策の経緯
+
+| 問題 | 原因 | 対策 |
+|------|------|------|
+| 極端に遅い | 初版マージが `@workgroup_size(1)` で 10,000 体を 1 スレッド直列処理 | 並列 compute パスへ分割 |
+| 真っ黒画面 | マージ bind group の storage buffer が **13 個**（WebGPU 上限 **10**/stage） | バッファ統合で **9 個**に削減 |
+| 画面ビカビカ・マージ停止 | 2 フレームに 1 回だけマージする間引き | **毎フレームマージ**に戻す（採用しない） |
+| マージが効かない | 固定セルサイズが小さすぎ（`max_radius ≈ 0.5` のみ想定） | `MERGE_MAX_RADIUS = 2.0` で保守的にセル拡大 |
+
+##### 空間ハッシュ（旧 `merger.rs` と同趣旨）
+
+全ペア O(N²) は使わない。バケット化して候補を絞る。
+
+1. **セルサイズ**（初版は毎フレーム `max_radius` 走査、現行は定数で代替）:
+   - `cell_size = max(2 × MERGE_MAX_RADIUS × MERGE_RADIUS_FACTOR, 0.01)`
+   - 定数: `MERGE_MAX_RADIUS = 2.0`、`MERGE_RADIUS_FACTOR = 0.2` → `cell_size = 0.8` AU
+   - 合体後の大きい星も隣接 27 セルに入るよう、半径上限を保守的に取る
+2. **ハッシュ**: 3D 座標を `floor(pos × inv_cell_size)` でセル化し、16384 バケットへオープンアドレス（`hash % MERGE_BUCKET_COUNT`）
+3. **登録**: 各活性体を `bucket_heads` + `bucket_next` の侵入リストに **並列**挿入（`atomicCompareExchange`）
+4. **候補ペア**: 各体 `i` が自セルと **隣接 27 セル**内のリストだけ走査
+5. **優先順**: `find_owner` で `atomicMin(merge_owner[j], i)`（`j > i` のみ）。最小 `i` が `j` を吸収 — 旧実装のループ順と同等
+6. **適用**: `apply_merge` で `merge_owner[j] == i` のペアのみ `absorb`（同一スレッド内で `i` が複数 `j` を連続吸収可）
+
+**GPU の条件分岐について**: 27 セル × リスト走査程度の分岐はコストより、探索範囲削減の利益が大きい。ボトルネックは依然 **O(N²) 重力** が第一候補。
+
+##### 並列マージパイプライン（毎フレーム）
+
+いずれも `@workgroup_size(256)`、`dispatch = ceil(N / 256)`（`clear_buckets` のみ `ceil(16384 / 256)`）。
+
+```
+prepare → clear_buckets → init_owner → build_grid → find_owner → apply_merge
+```
+
+| エントリ | 役割 |
+|----------|------|
+| `prepare` | `absorbed` クリア、スナップショット取得、`bucket_next` 初期化 |
+| `clear_buckets` | `bucket_heads ← INVALID` |
+| `init_owner` | `merge_owner[j] ← n`（無効オーナー） |
+| `build_grid` | 空間ハッシュへ並列 insert |
+| `find_owner` | 衝突候補に `atomicMin` でオーナー決定 |
+| `apply_merge` | オーナー一致ペアを合体 |
+
+スナップショットはパス開始時の位置・速度・質量のみ使用（距離判定・保存則。旧 `bodies[]` スナップショットと同じ）。
+
+##### WebGPU storage buffer 上限への対応
+
+ブラウザ WebGPU は compute stage あたり storage buffer **最大 10 個**。マージ用に以下へ統合。
+
+| バッファ | 内容 |
+|----------|------|
+| `positions`, `velocities`, `masses`, `accelerations` | シミュレーション本体（読み書き） |
+| `merge_scratch` | `[0..n)` = `vec4(pos.xyz, mass)`、`[n..2n)` = velocity |
+| `merge_bucket_heads` | `atomic<u32>` × 16384 |
+| `merge_bucket_next` | `u32` × n |
+| `merge_absorbed` | `u32` × n |
+| `merge_owner` | `atomic<u32>` × n |
+
+計 9 個 + uniform（`MergeParams`: `n`, `merge_radius_factor`, `inv_cell_size`, `min_mass`）。
+
+##### 非活性スロット（マージ後）
+
+`masses[j] ← 0`（`MIN_MASS = 1e-8` 以下）とし、他パスでスキップ。
+
+- `gravity.wgsl` / `integrate.wgsl`: `mass <= min_mass` なら early return
+- `bodies.wgsl`: 非活性はクリップ外へ飛ばして描画しない
+
+##### 採用しなかった案
+
+- **マージのフレーム間引き**（例: 2 フレームに 1 回）: 見た目がチラつき、マージが進まない
+- **CPU readback + 旧 `merger.rs`**: GPU 完結方針に反する
+- **毎フレーム GPU 上で `max_radius` 全走査 + 動的 `inv_cell`**: 追加 storage buffer で上限超過。定数 `MERGE_MAX_RADIUS` で代替
+
+##### 今後の高速化候補（未実装）
+
+- 重力 `gravity.wgsl` のタイル化 / 近傍リスト（現状 O(N²) が支配的）
+- 非活性スロットのコンパクション（N 可変化が必要）
+- 毎フレームの `max_radius` reduction を **1 storage 追加**以内で行い、セルサイズを動的化
 
 #### Task 5 受け入れ条件
 
