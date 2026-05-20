@@ -17,7 +17,7 @@ Galaxy を **Web 専用** の 3D N 体重力シミュレータとして再設計
 | 物理 | GPU compute 必須（CPU フォールバックなし） |
 | レンダリング | Bevy + WebGPU |
 | ECS | カメラ・設定のみ。10,000 体は ECS エンティティにしない |
-| 衝突マージ | 初版スコープ外 |
+| 衝突マージ | Phase 2 Task 5（旧 `merger.rs` と同仕様） |
 
 ## アーキテクチャ概要
 
@@ -34,7 +34,7 @@ GPU 常駐シミュレーション
   - CPU readback なし（物理ループは GPU 完結）
 ```
 
-**捨てるもの**: 独立 `wgpu::Instance`、`pollster`、CPU `NewtonianGravity`、`ForceCalculator` trait（初版）、10,000 `Mesh3d` エンティティ、`merger.rs`（初版）。
+**捨てるもの**: 独立 `wgpu::Instance`、`pollster`、CPU `NewtonianGravity`、`ForceCalculator` trait（初版）、10,000 `Mesh3d` エンティティ、ECS ベースの `merger.rs` 実装（仕様は Phase 2 で GPU 化）。
 
 ## 計画概要
 
@@ -42,7 +42,7 @@ GPU 常駐シミュレーション
 Trunk + WebGPU + canvas。Bevy が起動し、カメラ操作できる空画面まで。
 
 ### Phase 2: [GPU シミュレーション本体](phase2_gpu_simulation.md)
-GPU バッファ初期化、compute パイプライン、instanced 描画。10,000 体が動く。
+GPU バッファ初期化、compute パイプライン、描画、衝突マージ。10,000 体が動く。
 
 ### Phase 3: [デプロイ](phase3_deploy.md)
 GitHub Pages 公開。WebGPU 非対応時のエラー UI。

@@ -20,10 +20,13 @@ use bevy::{
 use super::{
     buffers::SimulationGpuBuffers,
     config::SimulationConfig,
-    constants::{BODY_COUNT, G, SOFTENING_SQ, dispatch_workgroups},
+    constants::{
+        BODY_COUNT, G, MERGE_BUCKET_COUNT, MERGE_INV_CELL_SIZE, MERGE_RADIUS_FACTOR, MIN_MASS,
+        SOFTENING_SQ, dispatch_workgroups,
+    },
 };
 
-use super::shaders::{GRAVITY_SHADER, INTEGRATE_SHADER};
+use super::shaders::{GRAVITY_SHADER, INTEGRATE_SHADER, MERGE_SHADER};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct SimulationComputeLabel;
@@ -32,9 +35,16 @@ pub struct SimulationComputeLabel;
 pub struct SimulationComputePipelines {
     pub gravity_layout: BindGroupLayoutDescriptor,
     pub integrate_layout: BindGroupLayoutDescriptor,
+    pub merge_layout: BindGroupLayoutDescriptor,
     pub gravity: CachedComputePipelineId,
     pub position_step: CachedComputePipelineId,
     pub velocity_step: CachedComputePipelineId,
+    pub merge_prepare: CachedComputePipelineId,
+    pub merge_clear_buckets: CachedComputePipelineId,
+    pub merge_init_owner: CachedComputePipelineId,
+    pub merge_build_grid: CachedComputePipelineId,
+    pub merge_find_owner: CachedComputePipelineId,
+    pub merge_apply: CachedComputePipelineId,
 }
 
 #[derive(Clone, Copy, ShaderType)]
@@ -42,15 +52,23 @@ pub struct GravityParams {
     pub n: u32,
     pub g: f32,
     pub softening_sq: f32,
-    pub _pad: f32,
+    pub min_mass: f32,
 }
 
 #[derive(Clone, Copy, ShaderType)]
 pub struct IntegrateParams {
     pub n: u32,
     pub dt: f32,
-    pub _pad0: f32,
-    pub _pad1: f32,
+    pub min_mass: f32,
+    pub _pad: f32,
+}
+
+#[derive(Clone, Copy, ShaderType)]
+pub struct MergeParams {
+    pub n: u32,
+    pub merge_radius_factor: f32,
+    pub inv_cell_size: f32,
+    pub min_mass: f32,
 }
 
 pub struct SimulationComputePlugin;
@@ -110,7 +128,27 @@ fn init_simulation_compute_pipelines(
                 storage_buffer::<Vec<Vec4>>(false),
                 storage_buffer::<Vec<Vec4>>(false),
                 storage_buffer_read_only::<Vec<Vec4>>(false),
+                storage_buffer_read_only::<Vec<f32>>(false),
                 uniform_buffer::<IntegrateParams>(false),
+            ),
+        ),
+    );
+
+    let merge_layout = BindGroupLayoutDescriptor::new(
+        "merge_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::COMPUTE,
+            (
+                storage_buffer::<Vec<Vec4>>(false),
+                storage_buffer::<Vec<Vec4>>(false),
+                storage_buffer::<Vec<f32>>(false),
+                storage_buffer::<Vec<Vec4>>(false),
+                storage_buffer::<Vec<Vec4>>(false),
+                storage_buffer::<Vec<u32>>(false),
+                storage_buffer::<Vec<u32>>(false),
+                storage_buffer::<Vec<u32>>(false),
+                storage_buffer::<Vec<u32>>(false),
+                uniform_buffer::<MergeParams>(false),
             ),
         ),
     );
@@ -139,13 +177,42 @@ fn init_simulation_compute_pipelines(
         ..default()
     });
 
+    let merge_prepare = queue_merge_pipeline(&pipeline_cache, &merge_layout, "prepare");
+    let merge_clear_buckets =
+        queue_merge_pipeline(&pipeline_cache, &merge_layout, "clear_buckets");
+    let merge_init_owner = queue_merge_pipeline(&pipeline_cache, &merge_layout, "init_owner");
+    let merge_build_grid = queue_merge_pipeline(&pipeline_cache, &merge_layout, "build_grid");
+    let merge_find_owner = queue_merge_pipeline(&pipeline_cache, &merge_layout, "find_owner");
+    let merge_apply = queue_merge_pipeline(&pipeline_cache, &merge_layout, "apply_merge");
+
     commands.insert_resource(SimulationComputePipelines {
         gravity_layout,
         integrate_layout,
+        merge_layout,
         gravity,
         position_step,
         velocity_step,
+        merge_prepare,
+        merge_clear_buckets,
+        merge_init_owner,
+        merge_build_grid,
+        merge_find_owner,
+        merge_apply,
     });
+}
+
+fn queue_merge_pipeline(
+    pipeline_cache: &PipelineCache,
+    layout: &BindGroupLayoutDescriptor,
+    entry: &'static str,
+) -> CachedComputePipelineId {
+    pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+        label: Some(entry.into()),
+        layout: vec![layout.clone()],
+        shader: MERGE_SHADER.clone(),
+        entry_point: Some(Cow::from(entry)),
+        ..default()
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -174,12 +241,27 @@ fn prepare_simulation_bind_group(
     let Some(accelerations_new) = storage.get(&gpu_buffers.accelerations_new) else {
         return;
     };
+    let Some(merge_bucket_heads) = storage.get(&gpu_buffers.merge_bucket_heads) else {
+        return;
+    };
+    let Some(merge_bucket_next) = storage.get(&gpu_buffers.merge_bucket_next) else {
+        return;
+    };
+    let Some(merge_absorbed) = storage.get(&gpu_buffers.merge_absorbed) else {
+        return;
+    };
+    let Some(merge_owner) = storage.get(&gpu_buffers.merge_owner) else {
+        return;
+    };
+    let Some(merge_scratch) = storage.get(&gpu_buffers.merge_scratch) else {
+        return;
+    };
 
     let gravity_params = GravityParams {
         n: BODY_COUNT as u32,
         g: G,
         softening_sq: SOFTENING_SQ,
-        _pad: 0.0,
+        min_mass: MIN_MASS,
     };
     let mut gravity_uniform = UniformBuffer::from(gravity_params);
     gravity_uniform.write_buffer(&render_device, &render_queue);
@@ -187,11 +269,20 @@ fn prepare_simulation_bind_group(
     let integrate_params = IntegrateParams {
         n: BODY_COUNT as u32,
         dt: config.dt(),
-        _pad0: 0.0,
-        _pad1: 0.0,
+        min_mass: MIN_MASS,
+        _pad: 0.0,
     };
     let mut integrate_uniform = UniformBuffer::from(integrate_params);
     integrate_uniform.write_buffer(&render_device, &render_queue);
+
+    let merge_params = MergeParams {
+        n: BODY_COUNT as u32,
+        merge_radius_factor: MERGE_RADIUS_FACTOR,
+        inv_cell_size: MERGE_INV_CELL_SIZE,
+        min_mass: MIN_MASS,
+    };
+    let mut merge_uniform = UniformBuffer::from(merge_params);
+    merge_uniform.write_buffer(&render_device, &render_queue);
 
     let gravity_bind_group = render_device.create_bind_group(
         None,
@@ -212,13 +303,32 @@ fn prepare_simulation_bind_group(
             velocities.buffer.as_entire_buffer_binding(),
             accelerations.buffer.as_entire_buffer_binding(),
             accelerations_new.buffer.as_entire_buffer_binding(),
+            masses.buffer.as_entire_buffer_binding(),
             &integrate_uniform,
+        )),
+    );
+
+    let merge_bind_group = render_device.create_bind_group(
+        None,
+        &pipeline_cache.get_bind_group_layout(&pipelines.merge_layout),
+        &BindGroupEntries::sequential((
+            positions.buffer.as_entire_buffer_binding(),
+            velocities.buffer.as_entire_buffer_binding(),
+            masses.buffer.as_entire_buffer_binding(),
+            accelerations.buffer.as_entire_buffer_binding(),
+            merge_scratch.buffer.as_entire_buffer_binding(),
+            merge_bucket_heads.buffer.as_entire_buffer_binding(),
+            merge_bucket_next.buffer.as_entire_buffer_binding(),
+            merge_absorbed.buffer.as_entire_buffer_binding(),
+            merge_owner.buffer.as_entire_buffer_binding(),
+            &merge_uniform,
         )),
     );
 
     commands.insert_resource(SimulationComputeBindGroups {
         gravity: gravity_bind_group,
         integrate: integrate_bind_group,
+        merge: merge_bind_group,
     });
 }
 
@@ -226,6 +336,7 @@ fn prepare_simulation_bind_group(
 pub struct SimulationComputeBindGroups {
     pub gravity: BindGroup,
     pub integrate: BindGroup,
+    pub merge: BindGroup,
 }
 
 #[derive(Default)]
@@ -244,6 +355,12 @@ impl render_graph::Node for SimulationComputeNode {
             pipelines.gravity,
             pipelines.position_step,
             pipelines.velocity_step,
+            pipelines.merge_prepare,
+            pipelines.merge_clear_buckets,
+            pipelines.merge_init_owner,
+            pipelines.merge_build_grid,
+            pipelines.merge_find_owner,
+            pipelines.merge_apply,
         ] {
             match cache.get_compute_pipeline_state(id) {
                 CachedPipelineState::Ok(_) => {}
@@ -293,6 +410,30 @@ impl render_graph::Node for SimulationComputeNode {
 
         pass.set_bind_group(0, &bind_groups.integrate, &[]);
         pass.set_pipeline(velocity_step);
+        pass.dispatch_workgroups(workgroups, 1, 1);
+
+        let bucket_workgroups = (MERGE_BUCKET_COUNT as u32).div_ceil(256);
+        let merge_prepare = cache.get_compute_pipeline(pipelines.merge_prepare).unwrap();
+        let merge_clear_buckets = cache
+            .get_compute_pipeline(pipelines.merge_clear_buckets)
+            .unwrap();
+        let merge_init_owner = cache.get_compute_pipeline(pipelines.merge_init_owner).unwrap();
+        let merge_build_grid = cache.get_compute_pipeline(pipelines.merge_build_grid).unwrap();
+        let merge_find_owner = cache.get_compute_pipeline(pipelines.merge_find_owner).unwrap();
+        let merge_apply = cache.get_compute_pipeline(pipelines.merge_apply).unwrap();
+
+        pass.set_bind_group(0, &bind_groups.merge, &[]);
+        pass.set_pipeline(merge_prepare);
+        pass.dispatch_workgroups(workgroups, 1, 1);
+        pass.set_pipeline(merge_clear_buckets);
+        pass.dispatch_workgroups(bucket_workgroups, 1, 1);
+        pass.set_pipeline(merge_init_owner);
+        pass.dispatch_workgroups(workgroups, 1, 1);
+        pass.set_pipeline(merge_build_grid);
+        pass.dispatch_workgroups(workgroups, 1, 1);
+        pass.set_pipeline(merge_find_owner);
+        pass.dispatch_workgroups(workgroups, 1, 1);
+        pass.set_pipeline(merge_apply);
         pass.dispatch_workgroups(workgroups, 1, 1);
 
         Ok(())

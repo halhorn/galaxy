@@ -37,6 +37,11 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
     let body_id = vertex.body_id;
     let mass = masses[body_id];
+    if (mass <= 1e-8) {
+        out.clip_position = vec4<f32>(0.0, 0.0, -1e6, 1.0);
+        out.color = vec4<f32>(0.0);
+        return out;
+    }
     let center = positions[body_id].xyz;
     let radius = radius_from_mass(mass);
     let world_pos = center + vertex.position * (radius * 2.0);

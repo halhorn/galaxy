@@ -1,20 +1,21 @@
 struct Params {
     n: u32,
     dt: f32,
-    _pad0: f32,
-    _pad1: f32,
+    min_mass: f32,
+    _pad: f32,
 }
 
 @group(0) @binding(0) var<storage, read_write> positions: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read_write> velocities: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> accelerations: array<vec4<f32>>;
 @group(0) @binding(3) var<storage, read> accelerations_new: array<vec4<f32>>;
-@group(0) @binding(4) var<uniform> params: Params;
+@group(0) @binding(4) var<storage, read> masses: array<f32>;
+@group(0) @binding(5) var<uniform> params: Params;
 
 @compute @workgroup_size(256)
 fn position_step(@builtin(global_invocation_id) id: vec3<u32>) {
     let i = id.x;
-    if (i >= params.n) {
+    if (i >= params.n || masses[i] <= params.min_mass) {
         return;
     }
     let dt = params.dt;
@@ -28,7 +29,7 @@ fn position_step(@builtin(global_invocation_id) id: vec3<u32>) {
 @compute @workgroup_size(256)
 fn velocity_step(@builtin(global_invocation_id) id: vec3<u32>) {
     let i = id.x;
-    if (i >= params.n) {
+    if (i >= params.n || masses[i] <= params.min_mass) {
         return;
     }
     let dt = params.dt;

@@ -4,7 +4,7 @@ use bevy::render::{
     extract_resource::ExtractResource, render_resource::BufferUsages, storage::ShaderStorageBuffer,
 };
 
-use super::constants::BODY_COUNT;
+use super::constants::{BODY_COUNT, MERGE_BUCKET_COUNT};
 
 /// GPU-resident simulation buffers (handles shared by compute + render).
 #[derive(Resource, Clone, ExtractResource)]
@@ -14,6 +14,16 @@ pub struct SimulationGpuBuffers {
     pub masses: Handle<ShaderStorageBuffer>,
     pub accelerations: Handle<ShaderStorageBuffer>,
     pub accelerations_new: Handle<ShaderStorageBuffer>,
+    /// Merge pass: spatial hash bucket heads (`u32::MAX` = empty).
+    pub merge_bucket_heads: Handle<ShaderStorageBuffer>,
+    /// Merge pass: intrusive list `next` per body index.
+    pub merge_bucket_next: Handle<ShaderStorageBuffer>,
+    /// Merge pass: absorbed flag per body (0/1).
+    pub merge_absorbed: Handle<ShaderStorageBuffer>,
+    /// Merge pass: smallest survivor index `i` per absorbed target `j`.
+    pub merge_owner: Handle<ShaderStorageBuffer>,
+    /// Merge snapshot: `[0..n)` pos.xyz + mass in w, `[n..2n)` velocity.
+    pub merge_scratch: Handle<ShaderStorageBuffer>,
 }
 
 impl SimulationGpuBuffers {
@@ -37,6 +47,31 @@ impl SimulationGpuBuffers {
             usage,
             asset_usage,
         ));
+        let merge_bucket_heads = buffers.add(storage_buffer(
+            vec![u32::MAX; MERGE_BUCKET_COUNT],
+            usage,
+            asset_usage,
+        ));
+        let merge_bucket_next = buffers.add(storage_buffer(
+            vec![u32::MAX; BODY_COUNT],
+            usage,
+            asset_usage,
+        ));
+        let merge_absorbed = buffers.add(storage_buffer(
+            vec![0u32; BODY_COUNT],
+            usage,
+            asset_usage,
+        ));
+        let merge_owner = buffers.add(storage_buffer(
+            vec![BODY_COUNT as u32; BODY_COUNT],
+            usage,
+            asset_usage,
+        ));
+        let merge_scratch = buffers.add(storage_buffer(
+            vec![Vec4::ZERO; BODY_COUNT * 2],
+            usage,
+            asset_usage,
+        ));
 
         Self {
             positions,
@@ -44,6 +79,11 @@ impl SimulationGpuBuffers {
             masses,
             accelerations,
             accelerations_new,
+            merge_bucket_heads,
+            merge_bucket_next,
+            merge_absorbed,
+            merge_owner,
+            merge_scratch,
         }
     }
 }
