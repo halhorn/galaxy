@@ -1,8 +1,9 @@
 use bevy::asset::RenderAssetUsages;
-use bevy::prelude::*;
+use bevy::prelude::{Assets, Handle, Resource, Vec4};
 use bevy::render::{
     extract_resource::ExtractResource, render_resource::BufferUsages, storage::ShaderStorageBuffer,
 };
+use bytemuck::Pod;
 
 use super::constants::{BODY_COUNT, MERGE_BUCKET_COUNT};
 
@@ -25,6 +26,17 @@ pub struct SimulationGpuBuffers {
 }
 
 impl SimulationGpuBuffers {
+    fn init_storage_buffer<T: Pod>(
+        buffers: &mut Assets<ShaderStorageBuffer>,
+        data: Vec<T>,
+        usage: BufferUsages,
+        asset_usage: RenderAssetUsages,
+    ) -> Handle<ShaderStorageBuffer> {
+        let mut buffer = ShaderStorageBuffer::new(bytemuck::cast_slice(data.as_slice()), asset_usage);
+        buffer.buffer_description.usage = usage;
+        buffers.add(buffer)
+    }
+
     pub fn new(
         buffers: &mut Assets<ShaderStorageBuffer>,
         positions: Vec<Vec4>,
@@ -36,33 +48,37 @@ impl SimulationGpuBuffers {
         let usage = BufferUsages::STORAGE | BufferUsages::COPY_DST;
         let asset_usage = RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD;
 
-        let positions = buffers.add(storage_buffer(positions, usage, asset_usage));
-        let velocities = buffers.add(storage_buffer(velocities, usage, asset_usage));
-        let masses = buffers.add(storage_buffer(masses, usage, asset_usage));
-        let accelerations = buffers.add(storage_buffer(accelerations, usage, asset_usage));
-        let accelerations_new = buffers.add(storage_buffer(
+        let positions = Self::init_storage_buffer(buffers, positions, usage, asset_usage);
+        let velocities = Self::init_storage_buffer(buffers, velocities, usage, asset_usage);
+        let masses = Self::init_storage_buffer(buffers, masses, usage, asset_usage);
+        let accelerations = Self::init_storage_buffer(buffers, accelerations, usage, asset_usage);
+        let accelerations_new = Self::init_storage_buffer(
+            buffers,
             vec![Vec4::ZERO; BODY_COUNT],
             usage,
             asset_usage,
-        ));
-        let merge_bucket_heads = buffers.add(storage_buffer(
+        );
+        let merge_bucket_heads = Self::init_storage_buffer(
+            buffers,
             vec![u32::MAX; MERGE_BUCKET_COUNT],
             usage,
             asset_usage,
-        ));
+        );
         let mut merge_aux_data = vec![u32::MAX; BODY_COUNT * 2];
         merge_aux_data[BODY_COUNT..].fill(0);
-        let merge_aux = buffers.add(storage_buffer(merge_aux_data, usage, asset_usage));
-        let merge_owner = buffers.add(storage_buffer(
+        let merge_aux = Self::init_storage_buffer(buffers, merge_aux_data, usage, asset_usage);
+        let merge_owner = Self::init_storage_buffer(
+            buffers,
             vec![BODY_COUNT as u32; BODY_COUNT],
             usage,
             asset_usage,
-        ));
-        let merge_scratch = buffers.add(storage_buffer(
+        );
+        let merge_scratch = Self::init_storage_buffer(
+            buffers,
             vec![Vec4::ZERO; BODY_COUNT * 2],
             usage,
             asset_usage,
-        ));
+        );
 
         Self {
             positions,
@@ -76,14 +92,4 @@ impl SimulationGpuBuffers {
             merge_scratch,
         }
     }
-}
-
-fn storage_buffer<T: bytemuck::Pod>(
-    data: Vec<T>,
-    usage: BufferUsages,
-    asset_usage: RenderAssetUsages,
-) -> ShaderStorageBuffer {
-    let mut buffer = ShaderStorageBuffer::new(bytemuck::cast_slice(data.as_slice()), asset_usage);
-    buffer.buffer_description.usage = usage;
-    buffer
 }
