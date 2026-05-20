@@ -3,10 +3,16 @@
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<storage, read> positions: array<vec4<f32>>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var<storage, read> masses: array<f32>;
 
+struct Vertex {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(5) body_id: u32,
+}
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec4<f32>,
-};
+}
 
 fn color_from_mass(mass: f32) -> vec3<f32> {
     let t = clamp((log(mass) / log(10.0) + 1.0) / 3.0, 0.0, 1.0);
@@ -22,12 +28,23 @@ fn color_from_mass(mass: f32) -> vec3<f32> {
     return rgb;
 }
 
+fn radius_from_mass(mass: f32) -> f32 {
+    return 0.5 * pow(mass, 1.0 / 3.0);
+}
+
 @vertex
-fn vertex(@builtin(vertex_index) body_id: u32) -> VertexOutput {
+fn vertex(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
+    let body_id = vertex.body_id;
     let mass = masses[body_id];
-    out.clip_position = position_world_to_clip(positions[body_id].xyz);
-    out.color = vec4<f32>(color_from_mass(mass), 1.0);
+    let center = positions[body_id].xyz;
+    let radius = radius_from_mass(mass);
+    let world_pos = center + vertex.position * (radius * 2.0);
+    let n = normalize(vertex.normal);
+    let light = normalize(vec3(0.15, 1.0, 0.25));
+    let shade = 0.55 + 0.45 * max(dot(n, light), 0.0);
+    out.clip_position = position_world_to_clip(world_pos);
+    out.color = vec4(color_from_mass(mass) * shade, 1.0);
     return out;
 }
 

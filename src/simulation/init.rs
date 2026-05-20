@@ -16,7 +16,9 @@ pub fn spawn_initial_state(
     let n_stars: usize = 2;
     let star_mass: f32 = 1.0;
     let star_orbit_radius: f32 = 10.0;
-    let disk_body_mass: f32 = 0.1;
+    // Visual radius range for disk bodies (shader: radius = 0.5 * mass^(1/3)).
+    let disk_radius_min: f32 = 0.14;
+    let disk_radius_max: f32 = 0.36;
     let disk_r_min: f32 = 5.0;
     let disk_r_max: f32 = 60.0;
     let disk_height: f32 = 0.5;
@@ -71,7 +73,8 @@ pub fn spawn_initial_state(
 
         positions[index] = position.extend(0.0);
         velocities[index] = velocity.extend(0.0);
-        masses[index] = disk_body_mass;
+        let radius = rng.range(disk_radius_min, disk_radius_max);
+        masses[index] = (radius / 0.5).powi(3);
         index += 1;
     }
 
