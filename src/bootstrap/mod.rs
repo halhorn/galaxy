@@ -1,7 +1,10 @@
 //! Web 向け Bevy アプリの組み立て。
 
+use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+
+use crate::simulation::{render::BodiesMesh, SimulationPlugin};
 
 /// ネイティブ・WASM 共通の `App` を組み立てて実行する。
 pub fn run() {
@@ -16,19 +19,28 @@ pub fn run() {
             }),
             ..default()
         }))
-        .add_plugins(PanOrbitCameraPlugin)
+        .add_plugins((PanOrbitCameraPlugin, SimulationPlugin))
         .insert_resource(ClearColor(Color::BLACK))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, setup_camera)
+        .add_systems(Update, hide_loading_when_ready)
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
+        Bloom::default(),
         Transform::from_xyz(0.0, 80.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
         PanOrbitCamera::default(),
     ));
+}
 
+/// シミュレーションの描画エンティティが揃ってからローディング UI を消す。
+fn hide_loading_when_ready(bodies: Query<(), With<BodiesMesh>>, mut done: Local<bool>) {
+    if *done || bodies.is_empty() {
+        return;
+    }
+    *done = true;
     #[cfg(target_arch = "wasm32")]
     hide_web_loading_overlay();
 }
