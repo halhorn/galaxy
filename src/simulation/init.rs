@@ -4,6 +4,7 @@ use std::f32::consts::PI;
 
 use super::buffers::SimulationGpuBuffers;
 use super::constants::*;
+use super::selection::SimulationCpuSnapshot;
 
 /// Disk + binary star initial conditions (one-shot CPU upload).
 pub fn spawn_initial_state(
@@ -82,7 +83,14 @@ pub fn spawn_initial_state(
 
     compute_initial_accelerations(&positions, &masses, &mut accelerations);
 
+    let cpu_snapshot = SimulationCpuSnapshot {
+        positions: positions.iter().map(|p| p.truncate()).collect(),
+        masses: masses.clone(),
+        ready: true,
+    };
+
     let gpu = SimulationGpuBuffers::new(&mut buffers, positions, velocities, masses, accelerations);
+    commands.insert_resource(cpu_snapshot);
     commands.insert_resource(gpu);
 }
 

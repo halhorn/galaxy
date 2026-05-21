@@ -48,9 +48,10 @@ impl SimulationGpuBuffers {
         let usage = BufferUsages::STORAGE | BufferUsages::COPY_DST;
         let asset_usage = RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD;
 
-        let positions = Self::init_storage_buffer(buffers, positions, usage, asset_usage);
+        let readback_usage = usage | BufferUsages::COPY_SRC;
+        let positions = Self::init_storage_buffer(buffers, positions, readback_usage, asset_usage);
         let velocities = Self::init_storage_buffer(buffers, velocities, usage, asset_usage);
-        let masses = Self::init_storage_buffer(buffers, masses, usage, asset_usage);
+        let masses = Self::init_storage_buffer(buffers, masses, readback_usage, asset_usage);
         let accelerations = Self::init_storage_buffer(buffers, accelerations, usage, asset_usage);
         let accelerations_new = Self::init_storage_buffer(
             buffers,
