@@ -10,12 +10,13 @@ mod upload;
 pub use commands::SimulationSpawned;
 pub use config::SimulationConfig;
 pub use gpu::SimulationGpuBuffers;
+pub use playback::{PlaybackMode, PlaybackState};
 pub use settings::SimulationSettings;
 
 use bevy::prelude::*;
 
 use gpu::SimulationGpuPlugin;
-use playback::{PlaybackState, SimulationClock};
+use playback::tick_sim_time;
 use restart::spawn_initial_simulation;
 use shaders::register_simulation_shaders;
 
@@ -26,9 +27,9 @@ impl Plugin for SimulationPlugin {
         app.init_resource::<SimulationConfig>()
             .init_resource::<SimulationSettings>()
             .init_resource::<PlaybackState>()
-            .init_resource::<SimulationClock>()
             .add_message::<SimulationSpawned>()
             .add_plugins(SimulationGpuPlugin)
-            .add_systems(Startup, (register_simulation_shaders, spawn_initial_simulation));
+            .add_systems(Startup, (register_simulation_shaders, spawn_initial_simulation))
+            .add_systems(Update, tick_sim_time);
     }
 }

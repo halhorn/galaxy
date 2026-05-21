@@ -9,6 +9,8 @@ use bevy::{
 
 use crate::model::constants::{dispatch_workgroups, MERGE_BUCKET_COUNT};
 
+use crate::simulation::playback::PlaybackState;
+
 use super::bind_groups::SimulationComputeBindGroups;
 use super::pipelines::SimulationComputePipelines;
 
@@ -58,6 +60,10 @@ impl render_graph::Node for SimulationComputeNode {
         world: &World,
     ) -> Result<(), render_graph::NodeRunError> {
         if !self.ready {
+            return Ok(());
+        }
+        let playback = world.resource::<PlaybackState>();
+        if !playback.is_running() {
             return Ok(());
         }
         let Some(bind_groups) = world.get_resource::<SimulationComputeBindGroups>() else {

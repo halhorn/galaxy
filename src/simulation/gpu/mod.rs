@@ -17,6 +17,7 @@ use bevy::{
 };
 
 use crate::simulation::config::SimulationConfig;
+use crate::simulation::playback::PlaybackState;
 use crate::simulation::settings::SimulationSettings;
 
 use bind_groups::prepare_simulation_bind_groups;
@@ -28,7 +29,8 @@ impl Plugin for SimulationGpuPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ExtractResourcePlugin::<SimulationGpuBuffers>::default())
             .add_plugins(ExtractResourcePlugin::<SimulationConfig>::default())
-            .add_plugins(ExtractResourcePlugin::<SimulationSettings>::default());
+            .add_plugins(ExtractResourcePlugin::<SimulationSettings>::default())
+            .add_plugins(ExtractResourcePlugin::<PlaybackState>::default());
 
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;

@@ -3,6 +3,7 @@ use bevy::{
     input::touch::Touches,
     prelude::*,
 };
+use bevy_panorbit_camera::EguiWantsFocus;
 
 use crate::model::constants::{BODY_COUNT, MIN_MASS};
 use crate::view::selection::snapshot::SimulationCpuSnapshot;
@@ -32,11 +33,16 @@ pub fn click_pick_body(
     mouse: Res<ButtonInput<MouseButton>>,
     touches: Res<Touches>,
     windows: Query<&Window>,
+    egui_wants_focus: Res<EguiWantsFocus>,
     mut picker: ResMut<ClickPickerState>,
     mut selected: ResMut<SelectedBody>,
     snapshot: Res<SimulationCpuSnapshot>,
     camera: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
 ) {
+    if egui_wants_focus.prev || egui_wants_focus.curr {
+        return;
+    }
+
     let Ok(window) = windows.single() else {
         return;
     };
