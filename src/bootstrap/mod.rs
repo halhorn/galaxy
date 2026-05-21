@@ -19,8 +19,8 @@ pub fn run() {
             ..default()
         }).set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Galaxy — Gravity Simulator".to_string(),
-                canvas: Some("#galaxy-canvas".into()),
+                title: "Gravitium — Gravity Simulator".to_string(),
+                canvas: Some("#gravitium-canvas".into()),
                 fit_canvas_to_parent: true,
                 prevent_default_event_handling: true,
                 ..default()
@@ -61,7 +61,7 @@ fn hide_web_loading_overlay() {
     let Some(doc) = win.document() else {
         return;
     };
-    let Some(el) = doc.get_element_by_id("galaxy-loading") else {
+    let Some(el) = doc.get_element_by_id("gravitium-loading") else {
         return;
     };
     let _ = el.set_attribute("hidden", "");

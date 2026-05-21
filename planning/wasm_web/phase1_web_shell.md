@@ -24,9 +24,9 @@ Web 専用に Cargo を整理する。
 ### Task 3: index.html
 fractalium を簡略化した版。
 
-- フルスクリーン `<canvas id="galaxy-canvas">`
-- ローディング `#galaxy-loading`
-- WebGPU 非対応用 `#galaxy-no-webgpu`（JS または Rust から表示）
+- フルスクリーン `<canvas id="gravitium-canvas">`
+- ローディング `#gravitium-loading`
+- WebGPU 非対応用 `#gravitium-no-webgpu`（JS または Rust から表示）
 - タッチ・ズーム抑止 CSS
 
 ### Task 4: Bevy 起動

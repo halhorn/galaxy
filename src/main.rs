@@ -1,3 +1,3 @@
 fn main() {
-    galaxy::bootstrap::run();
+    gravitium::bootstrap::run();
 }

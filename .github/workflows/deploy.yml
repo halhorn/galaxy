@@ -34,7 +34,7 @@ jobs:
           version: latest
 
       - name: Build WASM
-        run: RUSTFLAGS='--cfg=web_sys_unstable_apis' trunk build --release --public-url /galaxy/
+        run: RUSTFLAGS='--cfg=web_sys_unstable_apis' trunk build --release --public-url /gravitium/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

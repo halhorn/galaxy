@@ -2,7 +2,7 @@
 
 ## 目的
 
-Galaxy を **Web 専用** の 3D N 体重力シミュレータとして再設計し、ブラウザ上で **10,000 体** を GPU compute で動かす。  
+Gravitium を **Web 専用** の 3D N 体重力シミュレータとして再設計し、ブラウザ上で **10,000 体** を GPU compute で動かす。  
 ネイティブ対応・既存コードの互換は求めない。可能な限りシンプルな構成を優先する。
 
 参考: [fractalium](https://github.com/halhorn/fractalium) の Trunk / GitHub Pages パターン（ただし WebGL2 ではなく **WebGPU** を使用）。
@@ -12,7 +12,7 @@ Galaxy を **Web 専用** の 3D N 体重力シミュレータとして再設計
 | 項目 | 決定 |
 |------|------|
 | ターゲット | Web のみ（`wasm32-unknown-unknown`） |
-| 公開 URL | `https://halhorn.github.io/galaxy/`（`--public-url /galaxy/`） |
+| 公開 URL | `https://halhorn.github.io/gravitium/`（`--public-url /gravitium/`） |
 | 物体数 | 10,000 |
 | 物理 | GPU compute 必須（CPU フォールバックなし） |
 | レンダリング | Bevy + WebGPU |
@@ -61,4 +61,4 @@ Phase 2 がプロジェクトの核心。Phase 1 完了後に Phase 2 へ、Phas
 - [ ] マウスでオービットカメラが動く
 - [ ] 30fps 以上（目標 60fps）
 - [ ] WebGPU 非対応ブラウザで起動失敗メッセージが表示される
-- [ ] `https://halhorn.github.io/galaxy/` からアクセスできる
+- [ ] `https://halhorn.github.io/gravitium/` からアクセスできる
