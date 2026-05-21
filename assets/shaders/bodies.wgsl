@@ -14,18 +14,29 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
 }
 
+// Matches init.rs disk masses ~(0.14/0.5)^3 .. (0.36/0.5)^3 and binary stars at 1.0;
+// merged bodies can grow toward ~10 M☉.
+const MASS_LOG_MIN: f32 = -1.7; // log10(~0.02)
+const MASS_LOG_MAX: f32 = 1.0;  // log10(10) — full red at the top end
+
+fn mass_to_t(mass: f32) -> f32 {
+    let log_m = log(max(mass, 1e-8)) / log(10.0);
+    return clamp((log_m - MASS_LOG_MIN) / (MASS_LOG_MAX - MASS_LOG_MIN), 0.0, 1.0);
+}
+
 fn color_from_mass(mass: f32) -> vec3<f32> {
-    let t = clamp((log(mass) / log(10.0) + 1.0) / 3.0, 0.0, 1.0);
-    let brightness = 1.5 + t * 14.0;
+    let t = mass_to_t(mass);
     var rgb = vec3<f32>(0.0);
     if (t < 0.5) {
         let s = t * 2.0;
-        rgb = vec3<f32>(0.1 + 0.9 * s, 0.3 + 0.7 * s, 1.0) * brightness;
+        rgb = vec3<f32>(0.12 + 0.88 * s, 0.32 + 0.68 * s, 1.0);
     } else {
         let s = (t - 0.5) * 2.0;
-        rgb = vec3<f32>(1.0, 1.0 - 0.9 * s, 1.0 - 0.95 * s) * brightness;
+        rgb = vec3<f32>(1.0, 1.0 - 0.88 * s, 1.0 - 0.92 * s);
     }
-    return rgb;
+    // Bloom なしでも色が潰れない範囲でやや明るく（旧 HDR 1.5+t*14 より控えめ）
+    let brightness = 1.0 + t * 3.5;
+    return rgb * brightness;
 }
 
 fn radius_from_mass(mass: f32) -> f32 {
