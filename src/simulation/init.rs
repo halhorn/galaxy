@@ -23,8 +23,7 @@ pub fn spawn_initial_state(
     let disk_r_min: f32 = 5.0;
     let disk_r_max: f32 = 60.0;
     let disk_height: f32 = 0.5;
-    let initial_v_perturbation: f32 = 0.05;
-    let orbital_speed_factor: f32 = 2.0;
+    let initial_v_perturbation: f32 = 0.02;
 
     let mut positions = vec![Vec4::ZERO; BODY_COUNT];
     let mut velocities = vec![Vec4::ZERO; BODY_COUNT];
@@ -52,8 +51,17 @@ pub fn spawn_initial_state(
         index += 1;
     }
 
-    let total_mass = star_mass * n_stars as f32;
+    let central_mass = star_mass * n_stars as f32;
     let n_disk = BODY_COUNT - index;
+    let disk_start = index;
+
+    struct DiskSeed {
+        index: usize,
+        r: f32,
+        theta: f32,
+    }
+
+    let mut disk_seeds = Vec::with_capacity(n_disk);
 
     for _ in 0..n_disk {
         let u: f32 = rng.range(0.0, 1.0);
@@ -63,23 +71,35 @@ pub fn spawn_initial_state(
         let height: f32 = rng.range(-disk_height, disk_height);
 
         let position = Vec3::new(r * theta.cos(), height, r * theta.sin());
-
-        let v_mag = (g * total_mass / r).sqrt() * orbital_speed_factor;
-        let vr = v_mag * rng.range(-initial_v_perturbation, initial_v_perturbation);
-        let vt = v_mag * (1.0 + rng.range(-initial_v_perturbation, initial_v_perturbation));
-        let vy = v_mag * rng.range(-initial_v_perturbation, initial_v_perturbation);
-        let tangent = Vec3::new(-theta.sin(), 0.0, theta.cos());
-        let radial = Vec3::new(theta.cos(), 0.0, theta.sin());
-        let velocity = tangent * vt + radial * vr + Vec3::Y * vy;
-
         positions[index] = position.extend(0.0);
-        velocities[index] = velocity.extend(0.0);
         let radius = rng.range(disk_radius_min, disk_radius_max);
         masses[index] = (radius / 0.5).powi(3);
+        disk_seeds.push(DiskSeed {
+            index,
+            r,
+            theta,
+        });
         index += 1;
     }
 
+    disk_seeds.sort_by(|a, b| a.r.partial_cmp(&b.r).unwrap_or(std::cmp::Ordering::Equal));
+
+    let mut enclosed_mass = central_mass;
+    for seed in disk_seeds {
+        let r = seed.r.max(0.01);
+        let v_circ = (g * enclosed_mass / r).sqrt();
+        enclosed_mass += masses[seed.index];
+
+        let vr = v_circ * rng.range(-initial_v_perturbation, initial_v_perturbation);
+        let vt = v_circ * (1.0 + rng.range(-initial_v_perturbation, initial_v_perturbation));
+        let vy = v_circ * rng.range(-initial_v_perturbation, initial_v_perturbation) * 0.1;
+        let tangent = Vec3::new(-seed.theta.sin(), 0.0, seed.theta.cos());
+        let radial = Vec3::new(seed.theta.cos(), 0.0, seed.theta.sin());
+        velocities[seed.index] = (tangent * vt + radial * vr + Vec3::Y * vy).extend(0.0);
+    }
+
     debug_assert_eq!(index, BODY_COUNT);
+    debug_assert_eq!(disk_start + n_disk, BODY_COUNT);
 
     compute_initial_accelerations(&positions, &masses, &mut accelerations);
 
