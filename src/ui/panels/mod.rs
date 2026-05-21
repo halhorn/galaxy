@@ -13,9 +13,38 @@ use initial::initial_panel;
 use playback::playback_panel;
 use physics::physics_panel;
 
+/// Viewport width below which the control panel moves to the bottom (phone / narrow window).
+const MOBILE_BREAKPOINT_PX: f32 = 768.0;
+const MOBILE_PANEL_HEIGHT: f32 = 280.0;
+const TITLE_TAB_SPACING: f32 = 10.0;
+const MOBILE_BOTTOM_PADDING: f32 = 16.0;
+
 #[derive(Resource, Default)]
 struct FpsDisplay {
     fps: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum ControlTab {
+    #[default]
+    Playback,
+    Physics,
+    Initial,
+    Force,
+}
+
+impl ControlTab {
+    fn label(self, compact: bool) -> &'static str {
+        match self {
+            Self::Playback => "Playback",
+            Self::Physics => "Physics",
+            Self::Initial if compact => "Initial",
+            Self::Initial => "Initial Conditions",
+            Self::Force => "Force Law",
+        }
+    }
+
+    const ALL: [Self; 4] = [Self::Playback, Self::Physics, Self::Initial, Self::Force];
 }
 
 fn update_fps_display(time: Res<Time>, mut fps: ResMut<FpsDisplay>, mut smoothed: Local<f32>) {
@@ -27,42 +56,74 @@ fn update_fps_display(time: Res<Time>, mut fps: ResMut<FpsDisplay>, mut smoothed
     }
 }
 
+fn is_mobile_layout(windows: &Query<&Window>) -> bool {
+    windows
+        .single()
+        .is_ok_and(|window| window.width() < MOBILE_BREAKPOINT_PX)
+}
+
+fn tab_bar(ui: &mut egui::Ui, tab: &mut ControlTab, compact: bool) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = if compact { 6.0 } else { 8.0 };
+        for candidate in ControlTab::ALL {
+            if ui
+                .selectable_label(*tab == candidate, candidate.label(compact))
+                .clicked()
+            {
+                *tab = candidate;
+            }
+        }
+    });
+}
+
+fn active_tab_panel(
+    ui: &mut egui::Ui,
+    tab: ControlTab,
+    playback: &mut PlaybackState,
+    config: &mut SimulationConfig,
+    fps: f32,
+) {
+    match tab {
+        ControlTab::Playback => playback_panel(ui, playback, config, fps),
+        ControlTab::Physics => physics_panel(ui),
+        ControlTab::Initial => initial_panel(ui),
+        ControlTab::Force => force_panel(ui),
+    }
+}
+
 fn draw_control_panel(
     mut contexts: EguiContexts,
+    windows: Query<&Window>,
     mut playback: ResMut<PlaybackState>,
     mut config: ResMut<SimulationConfig>,
     fps: Res<FpsDisplay>,
+    mut tab: Local<ControlTab>,
 ) -> Result {
-    egui::SidePanel::left("control_panel")
-        .default_width(240.0)
-        .resizable(true)
-        .show(contexts.ctx_mut()?, |ui| {
-            ui.heading("Gravitium");
+    let ctx = contexts.ctx_mut()?;
+    let mobile = is_mobile_layout(&windows);
 
-            egui::CollapsingHeader::new("Playback")
-                .default_open(true)
-                .show(ui, |ui| {
-                    playback_panel(ui, &mut playback, &mut config, fps.fps);
-                });
+    let panel_contents = |ui: &mut egui::Ui| {
+        ui.heading("Gravitium");
+        ui.add_space(TITLE_TAB_SPACING);
+        tab_bar(ui, &mut tab, mobile);
+        ui.separator();
+        active_tab_panel(ui, *tab, &mut playback, &mut config, fps.fps);
+        if mobile {
+            ui.add_space(MOBILE_BOTTOM_PADDING);
+        }
+    };
 
-            egui::CollapsingHeader::new("Physics")
-                .default_open(false)
-                .show(ui, |ui| {
-                    physics_panel(ui);
-                });
-
-            egui::CollapsingHeader::new("Initial Conditions")
-                .default_open(false)
-                .show(ui, |ui| {
-                    initial_panel(ui);
-                });
-
-            egui::CollapsingHeader::new("Force Law")
-                .default_open(false)
-                .show(ui, |ui| {
-                    force_panel(ui);
-                });
-        });
+    if mobile {
+        egui::TopBottomPanel::bottom("control_panel")
+            .exact_height(MOBILE_PANEL_HEIGHT)
+            .resizable(false)
+            .show(ctx, panel_contents);
+    } else {
+        egui::SidePanel::left("control_panel")
+            .default_width(260.0)
+            .resizable(true)
+            .show(ctx, panel_contents);
+    }
 
     Ok(())
 }

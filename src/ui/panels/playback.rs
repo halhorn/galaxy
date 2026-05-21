@@ -8,8 +8,6 @@ pub fn playback_panel(
     config: &mut SimulationConfig,
     fps: f32,
 ) {
-    ui.heading("Playback");
-
     let status = match playback.mode {
         PlaybackMode::Running => "Running",
         PlaybackMode::Paused => "Paused",
