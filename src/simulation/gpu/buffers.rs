@@ -5,7 +5,7 @@ use bevy::render::{
 };
 use bytemuck::Pod;
 
-use super::constants::{BODY_COUNT, MERGE_BUCKET_COUNT};
+use crate::model::constants::{BODY_COUNT, MERGE_BUCKET_COUNT};
 
 /// GPU-resident simulation buffers (handles shared by compute + render).
 #[derive(Resource, Clone, ExtractResource)]
@@ -32,7 +32,8 @@ impl SimulationGpuBuffers {
         usage: BufferUsages,
         asset_usage: RenderAssetUsages,
     ) -> Handle<ShaderStorageBuffer> {
-        let mut buffer = ShaderStorageBuffer::new(bytemuck::cast_slice(data.as_slice()), asset_usage);
+        let mut buffer =
+            ShaderStorageBuffer::new(bytemuck::cast_slice(data.as_slice()), asset_usage);
         buffer.buffer_description.usage = usage;
         buffers.add(buffer)
     }

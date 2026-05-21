@@ -10,6 +10,7 @@ webgpu = ["bevy/webgpu"]
 
 [dependencies]
 bevy = "0.18.1"
+bevy_egui = "0.39"
 bevy_panorbit_camera = "0.34.0"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 

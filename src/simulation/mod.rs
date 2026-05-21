@@ -1,20 +1,22 @@
-mod buffers;
-mod compute;
+mod commands;
 mod config;
-mod constants;
-mod init;
-pub mod render;
-mod selection;
-mod shaders;
+pub mod gpu;
+mod playback;
+mod restart;
+mod settings;
+pub mod shaders;
+mod upload;
 
+pub use commands::SimulationSpawned;
 pub use config::SimulationConfig;
+pub use gpu::SimulationGpuBuffers;
+pub use settings::SimulationSettings;
 
 use bevy::prelude::*;
 
-use compute::SimulationComputePlugin;
-use init::spawn_initial_state;
-use render::{setup_bodies_render, BodiesRenderPlugin};
-use selection::SelectionPlugin;
+use gpu::SimulationGpuPlugin;
+use playback::{PlaybackState, SimulationClock};
+use restart::spawn_initial_simulation;
 use shaders::register_simulation_shaders;
 
 pub struct SimulationPlugin;
@@ -22,10 +24,11 @@ pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SimulationConfig>()
-            .add_plugins(BodiesRenderPlugin)
-            .add_plugins(SelectionPlugin)
-            .add_plugins(SimulationComputePlugin)
-            .add_systems(Startup, (register_simulation_shaders, spawn_initial_state))
-            .add_systems(PostStartup, setup_bodies_render);
+            .init_resource::<SimulationSettings>()
+            .init_resource::<PlaybackState>()
+            .init_resource::<SimulationClock>()
+            .add_message::<SimulationSpawned>()
+            .add_plugins(SimulationGpuPlugin)
+            .add_systems(Startup, (register_simulation_shaders, spawn_initial_simulation));
     }
 }

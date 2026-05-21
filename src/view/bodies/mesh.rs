@@ -1,18 +1,12 @@
 use bevy::{
-    camera::visibility::NoFrustumCulling,
     mesh::{Indices, MeshVertexAttribute, SphereKind, VertexAttributeValues, VertexFormat},
     prelude::*,
-    reflect::TypePath,
-    render::{render_resource::AsBindGroup, storage::ShaderStorageBuffer},
-    shader::ShaderRef,
 };
+
+use crate::model::constants::BODY_COUNT;
 
 /// Ico-sphere subdivisions for the unit template (92 verts @ 2 — balance of look vs build cost).
 const SPHERE_SUBDIVISIONS: u32 = 2;
-
-use super::shaders::BODIES_SHADER;
-
-use super::{buffers::SimulationGpuBuffers, constants::BODY_COUNT};
 
 /// Per-vertex body index (unit sphere duplicated per body).
 pub const ATTRIBUTE_BODY_ID: MeshVertexAttribute =
@@ -22,60 +16,8 @@ pub const ATTRIBUTE_BODY_ID: MeshVertexAttribute =
 #[derive(Component)]
 pub struct BodiesMesh;
 
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct BodiesMaterial {
-    #[storage(0, read_only)]
-    pub positions: Handle<ShaderStorageBuffer>,
-    #[storage(1, read_only)]
-    pub masses: Handle<ShaderStorageBuffer>,
-}
-
-impl Material for BodiesMaterial {
-    fn vertex_shader() -> ShaderRef {
-        ShaderRef::Handle(BODIES_SHADER)
-    }
-
-    fn fragment_shader() -> ShaderRef {
-        ShaderRef::Handle(BODIES_SHADER)
-    }
-
-    fn alpha_mode(&self) -> AlphaMode {
-        AlphaMode::Opaque
-    }
-}
-
-pub struct BodiesRenderPlugin;
-
-impl Plugin for BodiesRenderPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugins(MaterialPlugin::<BodiesMaterial>::default());
-    }
-}
-
-pub fn setup_bodies_render(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<BodiesMaterial>>,
-    gpu_buffers: Res<SimulationGpuBuffers>,
-) {
-    let mesh_handle = meshes.add(build_bodies_mesh());
-    let material_handle = materials.add(BodiesMaterial {
-        positions: gpu_buffers.positions.clone(),
-        masses: gpu_buffers.masses.clone(),
-    });
-    commands.spawn((
-        BodiesMesh,
-        Mesh3d(mesh_handle),
-        MeshMaterial3d(material_handle),
-        Transform::IDENTITY,
-        Visibility::default(),
-        // Mesh AABB is only the unit sphere at origin; world positions come from GPU storage.
-        NoFrustumCulling,
-    ));
-}
-
 /// One indexed unit sphere per body (single draw call; positions from GPU storage in the shader).
-fn build_bodies_mesh() -> Mesh {
+pub fn build_bodies_mesh() -> Mesh {
     let unit = Sphere::new(0.5)
         .mesh()
         .kind(SphereKind::Ico {

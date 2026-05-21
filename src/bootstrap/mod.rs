@@ -5,7 +5,9 @@ use bevy::render::settings::{RenderCreation, WgpuSettings, WgpuSettingsPriority}
 use bevy::render::RenderPlugin;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
-use crate::simulation::{render::BodiesMesh, SimulationPlugin};
+use crate::simulation::SimulationPlugin;
+use crate::view::{setup_bodies_render, BodiesMesh, ViewPlugin};
+use crate::ui::ControlUiPlugin;
 
 /// ネイティブ・WASM 共通の `App` を組み立てて実行する。
 pub fn run() {
@@ -27,8 +29,9 @@ pub fn run() {
             }),
             ..default()
         }))
-        .add_plugins((PanOrbitCameraPlugin, SimulationPlugin))
+        .add_plugins((PanOrbitCameraPlugin, SimulationPlugin, ViewPlugin, ControlUiPlugin))
         .insert_resource(ClearColor(Color::BLACK))
+        .add_systems(PostStartup, setup_bodies_render)
         .add_systems(Startup, setup_camera)
         .add_systems(Update, hide_loading_when_ready)
         .run();
