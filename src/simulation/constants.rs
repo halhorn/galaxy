@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 /// Fixed number of simulated bodies (not ECS entities).
-pub const BODY_COUNT: usize = 20_000;
+pub const BODY_COUNT: usize = 10_000;
 
 pub const WORKGROUP_SIZE: u32 = 256;
 
