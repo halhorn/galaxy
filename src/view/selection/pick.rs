@@ -1,4 +1,5 @@
 use bevy::{
+    ecs::system::SystemParam,
     input::mouse::MouseButton,
     input::touch::Touches,
     prelude::*,
@@ -29,43 +30,52 @@ const CLICK_DRAG_THRESHOLD_PX: f32 = 16.0;
 /// Minimum world-space pick/test radius so small disk bodies remain clickable.
 const MIN_PICK_RADIUS: f32 = 0.35;
 
-pub fn click_pick_body(
-    mouse: Res<ButtonInput<MouseButton>>,
-    touches: Res<Touches>,
-    windows: Query<&Window>,
-    egui_wants_focus: Res<EguiWantsFocus>,
-    mut picker: ResMut<ClickPickerState>,
-    mut selected: ResMut<SelectedBody>,
-    snapshot: Res<SimulationCpuSnapshot>,
-    camera: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-) {
-    if egui_wants_focus.prev || egui_wants_focus.curr {
+#[derive(SystemParam)]
+pub struct ClickPickInput<'w, 's> {
+    mouse: Res<'w, ButtonInput<MouseButton>>,
+    touches: Res<'w, Touches>,
+    windows: Query<'w, 's, &'static Window>,
+    egui_wants_focus: Res<'w, EguiWantsFocus>,
+    picker: ResMut<'w, ClickPickerState>,
+    selected: ResMut<'w, SelectedBody>,
+    snapshot: Res<'w, SimulationCpuSnapshot>,
+    camera: Query<'w, 's, (&'static Camera, &'static GlobalTransform), With<Camera3d>>,
+}
+
+pub fn click_pick_body(mut input: ClickPickInput<'_, '_>) {
+    if input.egui_wants_focus.prev || input.egui_wants_focus.curr {
         return;
     }
 
-    let Ok(window) = windows.single() else {
+    let Ok(window) = input.windows.single() else {
         return;
     };
 
-    if mouse.just_pressed(MouseButton::Left) {
+    if input.mouse.just_pressed(MouseButton::Left) {
         if let Some(cursor) = window.cursor_position() {
-            picker.press_cursor = Some(cursor);
+            input.picker.press_cursor = Some(cursor);
         }
         return;
     }
 
-    let touch_pick = touches
+    let touch_pick = input
+        .touches
         .iter_just_released()
         .find(|touch| touch.distance().length() <= CLICK_DRAG_THRESHOLD_PX)
         .map(|touch| touch.position());
 
-    let click_pick = mouse.just_released(MouseButton::Left).then(|| {
-        let cursor = window.cursor_position()?;
-        let press = picker.press_cursor.take()?;
-        (press.distance(cursor) <= CLICK_DRAG_THRESHOLD_PX).then_some(cursor)
-    }).flatten();
+    let click_pick = input
+        .mouse
+        .just_released(MouseButton::Left)
+        .then(|| {
+            let cursor = window.cursor_position()?;
+            let press = input.picker.press_cursor.take()?;
+            (press.distance(cursor) <= CLICK_DRAG_THRESHOLD_PX).then_some(cursor)
+        })
+        .flatten();
 
-    let middle_pick = mouse
+    let middle_pick = input
+        .mouse
         .just_pressed(MouseButton::Middle)
         .then(|| window.cursor_position())
         .flatten();
@@ -74,7 +84,12 @@ pub fn click_pick_body(
         return;
     };
 
-    pick_body_at_cursor(cursor, &snapshot, &camera, &mut selected);
+    pick_body_at_cursor(
+        cursor,
+        &input.snapshot,
+        &input.camera,
+        &mut input.selected,
+    );
 }
 
 fn pick_body_at_cursor(
