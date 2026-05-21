@@ -110,6 +110,67 @@
         <p>このシミュレータは WebGPU 対応ブラウザ（Chrome / Edge など）でご利用ください。CPU フォールバックはありません。</p>
     </div>
     <canvas id="galaxy-canvas"></canvas>
+    <script>
+        (function () {
+            function resizeCanvas() {
+                var c = document.getElementById("galaxy-canvas");
+                if (!c) return;
+                var dpr = window.devicePixelRatio || 1;
+                var w = Math.max(1, Math.floor((c.clientWidth || window.innerWidth) * dpr));
+                var h = Math.max(1, Math.floor((c.clientHeight || window.innerHeight) * dpr));
+                c.width = w;
+                c.height = h;
+            }
+            function showFatal(msg) {
+                var loading = document.getElementById("galaxy-loading");
+                var panel = document.getElementById("galaxy-no-webgpu");
+                var p = panel && panel.querySelector("p");
+                if (loading) loading.hidden = true;
+                if (panel) panel.hidden = false;
+                if (p) p.textContent = msg;
+            }
+            async function probeWebGpu() {
+                if (!navigator.gpu) return false;
+                try {
+                    // Do NOT call canvas.getContext("webgpu") here — wgpu needs an uncontested canvas.
+                    var adapter = await navigator.gpu.requestAdapter();
+                    if (!adapter) {
+                        showFatal("WebGPU アダプタを取得できませんでした。");
+                        return false;
+                    }
+                    return true;
+                } catch (e) {
+                    showFatal("WebGPU 初期化エラー: " + (e && e.message ? e.message : String(e)));
+                    return false;
+                }
+            }
+            window.addEventListener("error", function (e) {
+                var m = e.message || "";
+                if (/panicked|wgpu|WebGPU|surface/i.test(m)) {
+                    showFatal(m.slice(0, 600));
+                }
+            });
+            window.addEventListener("unhandledrejection", function (e) {
+                var m = String(e.reason || "");
+                if (/panicked|wgpu|WebGPU|surface/i.test(m)) {
+                    showFatal(m.slice(0, 600));
+                }
+            });
+            var origErr = console.error;
+            console.error = function () {
+                origErr.apply(console, arguments);
+                var s = Array.prototype.join.call(arguments, " ");
+                if (/panicked|wgpu|WebGPU|surface/i.test(s)) {
+                    showFatal(s.slice(0, 800));
+                }
+            };
+            document.addEventListener("DOMContentLoaded", function () {
+                resizeCanvas();
+                window.addEventListener("resize", resizeCanvas);
+                probeWebGpu();
+            });
+        })();
+    </script>
     <link data-trunk rel="rust" data-cargo-features="webgpu" data-wasm-opt="z" id="galaxy-trunk-rust"/>
     <script>
         (function () {

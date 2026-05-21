@@ -1,7 +1,8 @@
 //! Web 向け Bevy アプリの組み立て。
 
-use bevy::post_process::bloom::Bloom;
 use bevy::prelude::*;
+use bevy::render::settings::{RenderCreation, WgpuSettings, WgpuSettingsPriority};
+use bevy::render::RenderPlugin;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
 use crate::simulation::{render::BodiesMesh, SimulationPlugin};
@@ -9,7 +10,14 @@ use crate::simulation::{render::BodiesMesh, SimulationPlugin};
 /// ネイティブ・WASM 共通の `App` を組み立てて実行する。
 pub fn run() {
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
+        .add_plugins(DefaultPlugins.set(RenderPlugin {
+            render_creation: RenderCreation::Automatic(WgpuSettings {
+                // Safari / iOS WebGPU は Functionality 優先だとパイプラインが落ちることがある。
+                priority: WgpuSettingsPriority::Compatibility,
+                ..default()
+            }),
+            ..default()
+        }).set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Galaxy — Gravity Simulator".to_string(),
                 canvas: Some("#galaxy-canvas".into()),
@@ -29,7 +37,6 @@ pub fn run() {
 fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
-        Bloom::default(),
         Transform::from_xyz(0.0, 80.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
         PanOrbitCamera::default(),
     ));

@@ -13,3 +13,7 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Node (local Safari/WebKit debug only)
+node_modules/
+package-lock.json
