@@ -37,7 +37,7 @@ struct ClickPickerState {
 }
 
 /// Max cursor movement (logical px) to count as a click rather than orbit drag.
-const CLICK_DRAG_THRESHOLD_PX: f32 = 6.0;
+const CLICK_DRAG_THRESHOLD_PX: f32 = 16.0;
 
 const MARKER_COLOR: Color = Color::srgba(1.0, 0.22, 0.18, 0.95);
 const RING_SCALE: f32 = 1.35;
