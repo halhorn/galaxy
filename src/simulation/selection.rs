@@ -1,7 +1,8 @@
-//! Click-to-select a body and draw a camera-facing target reticle.
+//! Click/tap-to-select a body and draw a camera-facing target reticle.
 
 use bevy::{
     input::mouse::MouseButton,
+    input::touch::Touches,
     prelude::*,
     render::gpu_readback::{Readback, ReadbackComplete},
 };
@@ -107,6 +108,7 @@ fn parse_masses_readback(data: &[u8]) -> Vec<f32> {
 
 fn click_pick_body(
     mouse: Res<ButtonInput<MouseButton>>,
+    touches: Res<Touches>,
     windows: Query<&Window>,
     mut picker: ResMut<ClickPickerState>,
     mut selected: ResMut<SelectedBody>,
@@ -116,24 +118,33 @@ fn click_pick_body(
     let Ok(window) = windows.single() else {
         return;
     };
-    let Some(cursor) = window.cursor_position() else {
-        return;
-    };
 
     if mouse.just_pressed(MouseButton::Left) {
-        picker.press_cursor = Some(cursor);
+        if let Some(cursor) = window.cursor_position() {
+            picker.press_cursor = Some(cursor);
+        }
         return;
     }
 
+    // Mobile Safari has no cursor; use touch release with minimal movement as a tap.
+    let touch_pick = touches
+        .iter_just_released()
+        .find(|touch| touch.distance().length() <= CLICK_DRAG_THRESHOLD_PX)
+        .map(|touch| touch.position());
+
     let click_pick = mouse.just_released(MouseButton::Left).then(|| {
+        let cursor = window.cursor_position()?;
         let press = picker.press_cursor.take()?;
         (press.distance(cursor) <= CLICK_DRAG_THRESHOLD_PX).then_some(cursor)
     }).flatten();
 
     // Middle click always selects (avoids fighting orbit drag).
-    let middle_pick = mouse.just_pressed(MouseButton::Middle).then_some(cursor);
+    let middle_pick = mouse
+        .just_pressed(MouseButton::Middle)
+        .then(|| window.cursor_position())
+        .flatten();
 
-    let Some(cursor) = middle_pick.or(click_pick) else {
+    let Some(cursor) = touch_pick.or(middle_pick).or(click_pick) else {
         return;
     };
 
