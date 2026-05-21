@@ -6,16 +6,16 @@ mod physics;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 
-use crate::simulation::{PlaybackState, SimulationConfig};
+use crate::simulation::{
+    PlaybackState, SimulationConfig, SimulationViewportRect, SimViewportSystems,
+    DESKTOP_PANEL_WIDTH, MOBILE_BREAKPOINT_PX, MOBILE_PANEL_HEIGHT,
+};
 
 use force::force_panel;
 use initial::initial_panel;
 use playback::playback_panel;
 use physics::physics_panel;
 
-/// Viewport width below which the control panel moves to the bottom (phone / narrow window).
-const MOBILE_BREAKPOINT_PX: f32 = 768.0;
-const MOBILE_PANEL_HEIGHT: f32 = 280.0;
 const TITLE_TAB_SPACING: f32 = 10.0;
 const MOBILE_BOTTOM_PADDING: f32 = 16.0;
 
@@ -91,11 +91,19 @@ fn active_tab_panel(
     }
 }
 
+fn egui_rect_to_bevy(rect: egui::Rect) -> Rect {
+    Rect {
+        min: Vec2::new(rect.min.x, rect.min.y),
+        max: Vec2::new(rect.max.x, rect.max.y),
+    }
+}
+
 fn draw_control_panel(
     mut contexts: EguiContexts,
     windows: Query<&Window>,
     mut playback: ResMut<PlaybackState>,
     mut config: ResMut<SimulationConfig>,
+    mut viewport_rect: ResMut<SimulationViewportRect>,
     fps: Res<FpsDisplay>,
     mut tab: Local<ControlTab>,
 ) -> Result {
@@ -120,9 +128,15 @@ fn draw_control_panel(
             .show(ctx, panel_contents);
     } else {
         egui::SidePanel::left("control_panel")
-            .default_width(260.0)
+            .default_width(DESKTOP_PANEL_WIDTH)
             .resizable(true)
             .show(ctx, panel_contents);
+    }
+
+    if windows.single().is_ok() {
+        viewport_rect.logical = egui_rect_to_bevy(ctx.available_rect());
+    } else {
+        viewport_rect.logical = Rect::from_corners(Vec2::ZERO, Vec2::ONE);
     }
 
     Ok(())
@@ -134,6 +148,9 @@ impl Plugin for ControlPanelsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FpsDisplay>()
             .add_systems(Update, update_fps_display)
-            .add_systems(EguiPrimaryContextPass, draw_control_panel);
+            .add_systems(
+                EguiPrimaryContextPass,
+                draw_control_panel.in_set(SimViewportSystems::Layout),
+            );
     }
 }

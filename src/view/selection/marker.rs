@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::model::constants::{BODY_COUNT, MIN_MASS};
+use crate::view::SimulationCamera;
 use crate::view::selection::pick::SelectedBody;
 use crate::view::selection::snapshot::SimulationCpuSnapshot;
 
@@ -14,7 +15,7 @@ const MIN_PICK_RADIUS: f32 = 0.35;
 pub fn draw_selection_marker(
     selected: Res<SelectedBody>,
     snapshot: Res<SimulationCpuSnapshot>,
-    camera: Query<&GlobalTransform, With<Camera3d>>,
+    camera: Query<&GlobalTransform, With<SimulationCamera>>,
     mut gizmos: Gizmos,
 ) {
     let Some(index) = selected.0 else {

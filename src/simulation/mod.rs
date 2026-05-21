@@ -6,12 +6,17 @@ mod restart;
 mod settings;
 pub mod shaders;
 mod upload;
+mod viewport;
 
 pub use commands::SimulationSpawned;
 pub use config::SimulationConfig;
 pub use gpu::SimulationGpuBuffers;
 pub use playback::{PlaybackMode, PlaybackState};
 pub use settings::SimulationSettings;
+pub use viewport::{
+    fallback_logical_rect, logical_rect_to_camera_viewport, SimulationViewportRect,
+    SimViewportSystems, DESKTOP_PANEL_WIDTH, MOBILE_BREAKPOINT_PX, MOBILE_PANEL_HEIGHT,
+};
 
 use bevy::prelude::*;
 
@@ -27,6 +32,7 @@ impl Plugin for SimulationPlugin {
         app.init_resource::<SimulationConfig>()
             .init_resource::<SimulationSettings>()
             .init_resource::<PlaybackState>()
+            .init_resource::<SimulationViewportRect>()
             .add_message::<SimulationSpawned>()
             .add_plugins(SimulationGpuPlugin)
             .add_systems(Startup, (register_simulation_shaders, spawn_initial_simulation))

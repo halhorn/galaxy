@@ -7,6 +7,7 @@ use bevy::{
 use bevy_panorbit_camera::EguiWantsFocus;
 
 use crate::model::constants::{BODY_COUNT, MIN_MASS};
+use crate::view::SimulationCamera;
 use crate::view::selection::snapshot::SimulationCpuSnapshot;
 
 /// Index of the currently selected body, if any.
@@ -39,7 +40,7 @@ pub struct ClickPickInput<'w, 's> {
     picker: ResMut<'w, ClickPickerState>,
     selected: ResMut<'w, SelectedBody>,
     snapshot: Res<'w, SimulationCpuSnapshot>,
-    camera: Query<'w, 's, (&'static Camera, &'static GlobalTransform), With<Camera3d>>,
+    camera: Query<'w, 's, (&'static Camera, &'static GlobalTransform), With<SimulationCamera>>,
 }
 
 pub fn click_pick_body(mut input: ClickPickInput<'_, '_>) {
@@ -95,7 +96,7 @@ pub fn click_pick_body(mut input: ClickPickInput<'_, '_>) {
 fn pick_body_at_cursor(
     cursor: Vec2,
     snapshot: &SimulationCpuSnapshot,
-    camera: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    camera: &Query<(&Camera, &GlobalTransform), With<SimulationCamera>>,
     selected: &mut SelectedBody,
 ) {
     if !snapshot.ready || snapshot.masses.len() < BODY_COUNT || snapshot.positions.len() < BODY_COUNT {

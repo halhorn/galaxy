@@ -1,12 +1,14 @@
 //! Web 向け Bevy アプリの組み立て。
 
 use bevy::prelude::*;
+use bevy::camera::ClearColorConfig;
 use bevy::render::settings::{RenderCreation, WgpuSettings, WgpuSettingsPriority};
 use bevy::render::RenderPlugin;
+use bevy_egui::{EguiContext, PrimaryEguiContext};
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
 use crate::simulation::SimulationPlugin;
-use crate::view::{setup_bodies_render, BodiesMesh, ViewPlugin};
+use crate::view::{setup_bodies_render, BodiesMesh, SimulationCamera, ViewPlugin};
 use crate::ui::ControlUiPlugin;
 
 /// ネイティブ・WASM 共通の `App` を組み立てて実行する。
@@ -39,7 +41,23 @@ pub fn run() {
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn((
+        Camera2d,
+        Camera {
+            order: 1,
+            clear_color: ClearColorConfig::None,
+            ..default()
+        },
+        EguiContext::default(),
+        PrimaryEguiContext,
+    ));
+
+    commands.spawn((
         Camera3d::default(),
+        Camera {
+            order: 0,
+            ..default()
+        },
+        SimulationCamera,
         Transform::from_xyz(0.0, 80.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
         PanOrbitCamera::default(),
     ));

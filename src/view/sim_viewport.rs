@@ -1,0 +1,38 @@
+use bevy::prelude::*;
+
+use crate::simulation::{
+    logical_rect_to_camera_viewport, SimulationViewportRect, SimViewportSystems,
+};
+
+/// Marks the 3D camera that renders the simulation (not the egui overlay camera).
+#[derive(Component)]
+pub struct SimulationCamera;
+
+pub fn apply_simulation_camera_viewport(
+    viewport_rect: Res<SimulationViewportRect>,
+    windows: Query<&Window>,
+    mut cameras: Query<&mut Camera, With<SimulationCamera>>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok(mut camera) = cameras.single_mut() else {
+        return;
+    };
+
+    camera.viewport = Some(logical_rect_to_camera_viewport(
+        viewport_rect.logical,
+        window,
+    ));
+}
+
+pub struct SimulationViewportPlugin;
+
+impl Plugin for SimulationViewportPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            bevy_egui::EguiPrimaryContextPass,
+            apply_simulation_camera_viewport.in_set(SimViewportSystems::Apply),
+        );
+    }
+}
