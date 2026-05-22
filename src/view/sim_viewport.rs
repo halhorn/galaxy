@@ -8,7 +8,7 @@ use crate::simulation::{
 #[derive(Component)]
 pub struct SimulationCamera;
 
-pub fn apply_simulation_camera_viewport(
+pub fn update_simulation_camera_viewport(
     viewport_rect: Res<SimulationViewportRect>,
     windows: Query<&Window>,
     mut cameras: Query<&mut Camera, With<SimulationCamera>>,
@@ -32,7 +32,7 @@ impl Plugin for SimulationViewportPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             bevy_egui::EguiPrimaryContextPass,
-            apply_simulation_camera_viewport.in_set(SimViewportSystems::Apply),
+            update_simulation_camera_viewport.in_set(SimViewportSystems::CameraViewport),
         );
     }
 }

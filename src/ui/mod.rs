@@ -24,7 +24,7 @@ impl Plugin for ControlUiPlugin {
             .add_plugins(EguiPlugin::default())
             .configure_sets(
                 EguiPrimaryContextPass,
-                (SimViewportSystems::Layout, SimViewportSystems::Apply).chain(),
+                (SimViewportSystems::Layout, SimViewportSystems::CameraViewport).chain(),
             )
             .add_plugins(ControlPanelsPlugin)
             .add_systems(Update, playback_shortcuts);

@@ -3,7 +3,7 @@ use bevy::render::extract_resource::ExtractResource;
 
 use crate::model::{ForceLaw, InitialConditions, PhysicsSettings};
 
-/// Applied simulation parameters (Main world → Render world).
+/// Simulation parameters (Main world → Render world).
 #[derive(Resource, Clone, ExtractResource)]
 pub struct SimulationSettings {
     pub physics: PhysicsSettings,

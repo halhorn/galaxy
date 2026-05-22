@@ -8,8 +8,10 @@ pub const DESKTOP_PANEL_WIDTH: f32 = 260.0;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SimViewportSystems {
+    /// egui control panel layout (runs first).
     Layout,
-    Apply,
+    /// 3D camera viewport after panel rect is known (runs second).
+    CameraViewport,
 }
 
 /// Logical screen rect (top-left origin) reserved for the 3D simulation view.

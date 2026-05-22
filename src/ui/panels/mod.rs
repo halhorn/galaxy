@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 
 use crate::simulation::{
-    PlaybackState, SimulationConfig, SimulationViewportRect, SimViewportSystems,
+    PlaybackState, SimulationConfig, SimulationSettings, SimulationViewportRect, SimViewportSystems,
     DESKTOP_PANEL_WIDTH, MOBILE_BREAKPOINT_PX, MOBILE_PANEL_HEIGHT,
 };
 
@@ -82,10 +82,11 @@ fn active_tab_panel(
     playback: &mut PlaybackState,
     config: &mut SimulationConfig,
     fps: f32,
+    settings: &mut SimulationSettings,
 ) {
     match tab {
         ControlTab::Playback => playback_panel(ui, playback, config, fps),
-        ControlTab::Physics => physics_panel(ui),
+        ControlTab::Physics => physics_panel(ui, &mut settings.physics),
         ControlTab::Initial => initial_panel(ui),
         ControlTab::Force => force_panel(ui),
     }
@@ -104,6 +105,7 @@ fn draw_control_panel(
     mut playback: ResMut<PlaybackState>,
     mut config: ResMut<SimulationConfig>,
     mut viewport_rect: ResMut<SimulationViewportRect>,
+    mut settings: ResMut<SimulationSettings>,
     fps: Res<FpsDisplay>,
     mut tab: Local<ControlTab>,
 ) -> Result {
@@ -115,7 +117,14 @@ fn draw_control_panel(
         ui.add_space(TITLE_TAB_SPACING);
         tab_bar(ui, &mut tab, mobile);
         ui.separator();
-        active_tab_panel(ui, *tab, &mut playback, &mut config, fps.fps);
+        active_tab_panel(
+            ui,
+            *tab,
+            &mut playback,
+            &mut config,
+            fps.fps,
+            &mut settings,
+        );
         if mobile {
             ui.add_space(MOBILE_BOTTOM_PADDING);
         }
