@@ -35,6 +35,9 @@ GPU compute shader による大規模化。10万体以上対応。
 ### Story 6: [Web 専用 GPU シミュレータ](wasm_web/overview.md)
 Web 専用に再設計。Trunk + Bevy WebGPU で 10,000 体を GPU compute 駆動。GitHub Pages 公開。
 
+### Story 7: [URL 状態同期](url_state/overview.md)
+UI 設定を `#v=1&…` フラグメントに反映。リロード復元と URL による設定共有（シェア UI は不要）。
+
 ## Story 間の依存関係
 
 ```
@@ -45,7 +48,7 @@ Story 1 (MVP)
   └─→ Story 5 (GPU compute)
 ```
 
-Story 1 完了後、Story 2〜5 は互いに独立して着手可能。Story 6 は Web 専用再設計のため Story 1〜5 と独立（既存デスクトップコードの互換は不要）。
+Story 1 完了後、Story 2〜5 は互いに独立して着手可能。Story 6 は Web 専用再設計のため Story 1〜5 と独立（既存デスクトップコードの互換は不要）。Story 7 は Story 2（Applied 設定 UI）完了後に着手。Story 6 と並行可能。
 
 ## 受け入れ条件（プロジェクト全体）
 

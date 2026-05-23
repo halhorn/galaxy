@@ -8,7 +8,9 @@ use bevy::render::RenderPlugin;
 use bevy_egui::{EguiContext, PrimaryEguiContext};
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
+use crate::platform;
 use crate::simulation::SimulationPlugin;
+use crate::url::{UrlNavigation, UrlSyncPlugin};
 use crate::view::{
     setup_bodies_render, BodiesMesh, SimulationCamera, ViewPlugin, SIMULATION_RENDER_LAYER,
     UI_RENDER_LAYER,
@@ -35,7 +37,14 @@ pub fn run() {
             }),
             ..default()
         }))
-        .add_plugins((PanOrbitCameraPlugin, SimulationPlugin, ViewPlugin, ControlUiPlugin))
+        .insert_resource(UrlNavigation(platform::url_navigation_arc()))
+        .add_plugins((
+            UrlSyncPlugin,
+            PanOrbitCameraPlugin,
+            SimulationPlugin,
+            ViewPlugin,
+            ControlUiPlugin,
+        ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(PostStartup, setup_bodies_render)
         .add_systems(Startup, setup_camera)

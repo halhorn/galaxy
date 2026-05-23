@@ -1,5 +1,9 @@
 pub mod bootstrap;
+pub mod encoding;
 pub mod model;
+pub mod platform;
+pub mod ports;
 pub mod simulation;
 pub mod ui;
+pub mod url;
 pub mod view;

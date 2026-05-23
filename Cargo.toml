@@ -13,6 +13,7 @@ bevy = "0.18.1"
 bevy_egui = "0.39"
 bevy_panorbit_camera = { version = "0.34.0", features = ["bevy_egui"] }
 bytemuck = { version = "1.25.0", features = ["derive"] }
+urlencoding = "2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"
@@ -20,6 +21,8 @@ wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = [
     "Document",
     "Element",
+    "History",
+    "Location",
     "Window",
 ] }
 

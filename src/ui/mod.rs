@@ -15,6 +15,8 @@ use apply::UiApplyPlugin;
 use keyboard::playback_shortcuts;
 use panels::ControlPanelsPlugin;
 
+pub use draft::ControlPanelDraft;
+
 pub struct ControlUiPlugin;
 
 impl Plugin for ControlUiPlugin {
