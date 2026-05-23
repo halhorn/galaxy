@@ -1,4 +1,5 @@
 mod bodies;
+mod camera;
 mod selection;
 mod sim_viewport;
 
@@ -7,6 +8,7 @@ pub use sim_viewport::{SimulationCamera, SIMULATION_RENDER_LAYER, UI_RENDER_LAYE
 
 use bevy::prelude::*;
 
+use camera::CameraControlsPlugin;
 use selection::SelectionPlugin;
 use sim_viewport::SimulationViewportPlugin;
 
@@ -14,6 +16,11 @@ pub struct ViewPlugin;
 
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((BodiesRenderPlugin, SelectionPlugin, SimulationViewportPlugin));
+        app.add_plugins((
+            BodiesRenderPlugin,
+            SelectionPlugin,
+            SimulationViewportPlugin,
+            CameraControlsPlugin,
+        ));
     }
 }
