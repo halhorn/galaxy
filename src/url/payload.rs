@@ -24,10 +24,6 @@ pub fn encode_applied_state(state: &AppliedUrlState) -> Result<String, String> {
         "ts".into(),
         SubLevel::encode_from_f32_vec(&[state.time_scale]),
     ));
-    pairs.push((
-        "pause".into(),
-        SubLevel::new(if state.paused { "1" } else { "0" }),
-    ));
     pairs.push(("seed".into(), SubLevel::new(state.initial.seed.to_string())));
     pairs.push((
         "nstars".into(),
@@ -92,7 +88,6 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
     let mut physics = AppliedUrlState::default().physics;
     let mut initial = AppliedUrlState::default().initial;
     let mut time_scale = None;
-    let mut paused = None;
     let mut legacy_g = None;
     let mut terms = Vec::<ForceTerm>::new();
 
@@ -103,7 +98,6 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
             "soft" => physics.softening = decode_f32(val)?,
             "merge" => physics.merge_radius_factor = decode_f32(val)?,
             "ts" => time_scale = Some(decode_f32(val)?),
-            "pause" => paused = Some(decode_pause(val)?),
             "seed" => initial.seed = decode_u64(val)?,
             "nstars" => initial.n_stars = val.decode_to_u32()?,
             "stmass" => initial.star_mass = decode_f32(val)?,
@@ -135,7 +129,6 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
         initial,
         force,
         time_scale: time_scale.unwrap_or(SimulationConfig::default().time_scale),
-        paused: paused.unwrap_or(false),
     }
     .clamped();
 
@@ -174,14 +167,6 @@ fn decode_u64(val: &SubLevel) -> Result<u64, String> {
         .trim()
         .parse::<u64>()
         .map_err(|_| format!("bad u64: {}", val.as_str()))
-}
-
-fn decode_pause(val: &SubLevel) -> Result<bool, String> {
-    match val.as_str().trim() {
-        "1" => Ok(true),
-        "0" => Ok(false),
-        _ => val.decode_to_bool_bin(),
-    }
 }
 
 fn parse_force_term(val: &SubLevel) -> Result<ForceTerm, String> {
@@ -246,7 +231,6 @@ mod tests {
                 active_count: 500,
                 ..InitialConditions::default()
             },
-            paused: true,
             time_scale: 2.0,
             ..AppliedUrlState::default()
         }
@@ -256,7 +240,7 @@ mod tests {
         assert_eq!(encode_applied_state(&out).unwrap(), q);
         assert_eq!(out.initial.seed, 42);
         assert_eq!(out.force.term_count, 2);
-        assert!(out.paused);
+        assert!((out.time_scale - 2.0).abs() < 1e-5);
     }
 
     #[test]

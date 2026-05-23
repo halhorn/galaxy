@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::simulation::{PlaybackState, SimulationConfig, SimulationSettings};
+use crate::simulation::{SimulationConfig, SimulationSettings};
 use crate::ui::ControlPanelDraft;
 
 use super::applied::AppliedUrlState;
@@ -34,7 +34,6 @@ fn hydrate_from_url(
     nav: Res<UrlNavigation>,
     mut settings: ResMut<SimulationSettings>,
     mut config: ResMut<SimulationConfig>,
-    mut playback: ResMut<PlaybackState>,
     mut draft: ResMut<ControlPanelDraft>,
     mut hydrated: ResMut<UrlHydrated>,
 ) {
@@ -51,7 +50,7 @@ fn hydrate_from_url(
     };
 
     draft.initial = state.initial.clone();
-    state.apply_to_resources(&mut settings, &mut config, &mut playback);
+    state.apply_to_resources(&mut settings, &mut config);
     hydrated.0 = true;
 }
 
@@ -64,10 +63,9 @@ fn queue_initial_url_flush(hydrated: Res<UrlHydrated>, mut pending: ResMut<Pendi
 fn detect_applied_changes(
     settings: Res<SimulationSettings>,
     config: Res<SimulationConfig>,
-    playback: Res<PlaybackState>,
     mut pending: ResMut<PendingUrlSync>,
 ) {
-    if settings.is_changed() || config.is_changed() || playback.is_changed() {
+    if settings.is_changed() || config.is_changed() {
         pending.0 = true;
     }
 }
@@ -76,7 +74,6 @@ fn flush_url_fragment(
     nav: Res<UrlNavigation>,
     settings: Res<SimulationSettings>,
     config: Res<SimulationConfig>,
-    playback: Res<PlaybackState>,
     mut pending: ResMut<PendingUrlSync>,
     mut last_token: Local<Option<String>>,
 ) {
@@ -85,7 +82,7 @@ fn flush_url_fragment(
     }
     pending.0 = false;
 
-    let state = AppliedUrlState::from_resources(&settings, &config, &playback);
+    let state = AppliedUrlState::from_resources(&settings, &config);
     let Ok(query) = encode_applied_state(&state) else {
         return;
     };

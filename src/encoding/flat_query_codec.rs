@@ -192,18 +192,6 @@ impl SubLevel {
             .map_err(|_| format!("bad u32: {}", self.as_str()))
     }
 
-    /// 値全体をトリムし、`0` / `1` / `true` / `false` のいずれかとして復号する（この4種のみ、大小はこのまま）。
-    ///
-    /// # 戻り値
-    /// 復号した [`bool`]。
-    pub(crate) fn decode_to_bool_bin(&self) -> Result<bool, String> {
-        match self.as_str().trim() {
-            "1" | "true" => Ok(true),
-            "0" | "false" => Ok(false),
-            _ => Err(format!("bad bool: {}", self.as_str())),
-        }
-    }
-
     /// 順番どおり [`f32`] を `,` 区切りのサブレベル値へ書き出す。
     ///
     /// 各要素は [`WIRE_F32_SIG_FIGS`]・[`WIRE_F32_NEAR_ZERO_EPS`] に従いトークン化する（[`SubLevel::encode_from_kv_f32`] と同一規約）。
@@ -460,10 +448,8 @@ mod tests {
     }
 
     #[test]
-    fn wire_u32_and_bool() {
+    fn wire_u32() {
         assert_eq!(SubLevel::new(" 42 ").decode_to_u32().unwrap(), 42);
-        assert!(SubLevel::new("1").decode_to_bool_bin().unwrap());
-        assert!(!SubLevel::new("false").decode_to_bool_bin().unwrap());
     }
 
     #[test]
