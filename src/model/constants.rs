@@ -37,3 +37,14 @@ pub fn merge_inv_cell_size(merge_radius_factor: f32) -> f32 {
 pub fn dispatch_workgroups() -> u32 {
     (BODY_COUNT as u32).div_ceil(WORKGROUP_SIZE)
 }
+
+/// Initial-condition UI / validation ranges (Phase 3).
+pub const N_STARS_MIN: u32 = 1;
+pub const N_STARS_MAX: u32 = 4;
+pub const ACTIVE_COUNT_MIN: u32 = 2;
+pub const ACTIVE_COUNT_MAX: u32 = BODY_COUNT as u32;
+
+pub const DISK_R_MIN: f32 = 1.0;
+pub const DISK_R_MAX: f32 = 120.0;
+pub const DISK_HEIGHT_MAX: f32 = 5.0;
+pub const V_PERTURBATION_MAX: f32 = 0.5;

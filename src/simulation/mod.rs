@@ -8,10 +8,11 @@ pub mod shaders;
 mod upload;
 mod viewport;
 
-pub use commands::SimulationSpawned;
+pub use commands::{SimulationCommand, SimulationSpawned};
 pub use config::SimulationConfig;
 pub use gpu::SimulationGpuBuffers;
 pub use playback::{PlaybackMode, PlaybackState};
+pub use restart::restart_simulation;
 pub use settings::SimulationSettings;
 pub use viewport::{
     fallback_logical_rect, logical_rect_to_camera_viewport, SimulationViewportRect,
@@ -25,6 +26,9 @@ use playback::tick_sim_time;
 use restart::spawn_initial_simulation;
 use shaders::register_simulation_shaders;
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SimulationRestartSet;
+
 pub struct SimulationPlugin;
 
 impl Plugin for SimulationPlugin {
@@ -34,6 +38,7 @@ impl Plugin for SimulationPlugin {
             .init_resource::<PlaybackState>()
             .init_resource::<SimulationViewportRect>()
             .add_message::<SimulationSpawned>()
+            .add_message::<SimulationCommand>()
             .add_plugins(SimulationGpuPlugin)
             .add_systems(Startup, (register_simulation_shaders, spawn_initial_simulation))
             .add_systems(Update, tick_sim_time);

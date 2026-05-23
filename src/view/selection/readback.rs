@@ -27,11 +27,15 @@ pub fn setup_readback(mut commands: Commands, gpu: Res<SimulationGpuBuffers>) {
 pub fn on_spawned_seed_snapshot(
     mut events: MessageReader<SimulationSpawned>,
     mut snapshot: ResMut<SimulationCpuSnapshot>,
+    mut selected: ResMut<super::pick::SelectedBody>,
 ) {
     for event in events.read() {
         snapshot.positions = event.positions.clone();
         snapshot.masses = event.masses.clone();
-        snapshot.ready = true;
+        snapshot.ready = !event.pending_readback;
+        if event.pending_readback {
+            selected.0 = None;
+        }
     }
 }
 

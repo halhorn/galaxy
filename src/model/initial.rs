@@ -1,7 +1,10 @@
 use std::f32::consts::PI;
 
 use super::body::BodyArrays;
-use super::constants::BODY_COUNT;
+use super::constants::{
+    ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_R_MAX, DISK_R_MIN,
+    MIN_MASS, N_STARS_MAX, N_STARS_MIN, V_PERTURBATION_MAX,
+};
 use super::force::ForceLaw;
 use super::physics::PhysicsSettings;
 use super::rng::SimpleRng;
@@ -36,6 +39,32 @@ impl Default for InitialConditions {
             disk_height: 0.5,
             initial_v_perturbation: 0.02,
             active_count: BODY_COUNT as u32,
+        }
+    }
+}
+
+impl InitialConditions {
+    pub fn clamped(self) -> Self {
+        let n_stars = self.n_stars.clamp(N_STARS_MIN, N_STARS_MAX);
+        let active_count = self
+            .active_count
+            .clamp(ACTIVE_COUNT_MIN.max(n_stars), ACTIVE_COUNT_MAX);
+        let disk_r_min = self.disk_r_min.clamp(DISK_R_MIN, DISK_R_MAX);
+        let disk_r_max = self.disk_r_max.clamp(disk_r_min + 0.1, DISK_R_MAX);
+        Self {
+            seed: self.seed,
+            n_stars,
+            star_mass: self.star_mass.max(MIN_MASS),
+            star_orbit_radius: self.star_orbit_radius.max(0.1),
+            disk_radius_min: self.disk_radius_min.max(MIN_MASS),
+            disk_radius_max: self.disk_radius_max.max(self.disk_radius_min + 0.01),
+            disk_r_min,
+            disk_r_max,
+            disk_height: self.disk_height.clamp(0.0, DISK_HEIGHT_MAX),
+            initial_v_perturbation: self
+                .initial_v_perturbation
+                .clamp(0.0, V_PERTURBATION_MAX),
+            active_count,
         }
     }
 }
@@ -123,8 +152,67 @@ pub fn generate_initial_state(
     }
 
     debug_assert_eq!(index, active);
+
+    for slot in active..BODY_COUNT {
+        bodies.positions[slot] = [0.0; 4];
+        bodies.velocities[slot] = [0.0; 4];
+        bodies.masses[slot] = 0.0;
+    }
+
     bodies.accelerations = force.compute_accelerations(&bodies, physics);
     bodies
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::constants::BODY_COUNT;
+    use crate::model::PhysicsSettings;
+
+    #[test]
+    fn clamped_enforces_active_count_bounds() {
+        let ic = InitialConditions {
+            n_stars: 4,
+            active_count: 1,
+            ..InitialConditions::default()
+        };
+        let clamped = ic.clamped();
+        assert_eq!(clamped.n_stars, 4);
+        assert_eq!(clamped.active_count, 4);
+    }
+
+    #[test]
+    fn same_seed_produces_same_disk_layout() {
+        let ic = InitialConditions {
+            seed: 42,
+            n_stars: 2,
+            active_count: 128,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let force = ForceLaw::newtonian(physics.g);
+        let a = generate_initial_state(&ic, &physics, &force);
+        let b = generate_initial_state(&ic, &physics, &force);
+        assert_eq!(a.positions, b.positions);
+        assert_eq!(a.velocities, b.velocities);
+        assert_eq!(a.masses, b.masses);
+    }
+
+    #[test]
+    fn inactive_slots_are_zeroed() {
+        let ic = InitialConditions {
+            active_count: 16,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let force = ForceLaw::newtonian(physics.g);
+        let bodies = generate_initial_state(&ic, &physics, &force);
+        for slot in ic.active_count as usize..BODY_COUNT {
+            assert_eq!(bodies.masses[slot], 0.0);
+            assert_eq!(bodies.positions[slot], [0.0; 4]);
+            assert_eq!(bodies.velocities[slot], [0.0; 4]);
+        }
+    }
 }
 
 #[inline]

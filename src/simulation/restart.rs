@@ -3,30 +3,11 @@ use bevy::render::storage::ShaderStorageBuffer;
 
 use crate::model::{generate_initial_state, BodyArrays};
 
-use super::commands::SimulationSpawned;
+use super::commands::{SimulationCommand, SimulationSpawned};
 use super::gpu::SimulationGpuBuffers;
+use super::playback::PlaybackState;
 use super::settings::SimulationSettings;
-
-/// Convert model arrays to Bevy `Vec4` for GPU upload.
-pub fn body_arrays_to_vec4(bodies: &BodyArrays) -> (Vec<Vec4>, Vec<Vec4>, Vec<f32>, Vec<Vec4>) {
-    let positions = bodies
-        .positions
-        .iter()
-        .map(|p| Vec4::new(p[0], p[1], p[2], p[3]))
-        .collect();
-    let velocities = bodies
-        .velocities
-        .iter()
-        .map(|v| Vec4::new(v[0], v[1], v[2], v[3]))
-        .collect();
-    let masses = bodies.masses.clone();
-    let accelerations = bodies
-        .accelerations
-        .iter()
-        .map(|a| Vec4::new(a[0], a[1], a[2], a[3]))
-        .collect();
-    (positions, velocities, masses, accelerations)
-}
+use super::upload::{queue_upload, PendingSimulationUpload};
 
 /// One-shot startup: generate state and create GPU buffers.
 pub fn spawn_initial_simulation(
@@ -36,7 +17,34 @@ pub fn spawn_initial_simulation(
     mut spawned: MessageWriter<SimulationSpawned>,
 ) {
     let bodies = generate_initial_state(&settings.initial, &settings.physics, &settings.force);
-    install_simulation_state(&mut commands, &mut buffers, &bodies, &mut spawned);
+    install_simulation_state(&mut commands, &mut buffers, &bodies, &mut spawned, false);
+}
+
+/// Apply a restart: reset time, regenerate bodies, queue GPU upload, keep running.
+pub fn restart_simulation(
+    mut commands: MessageReader<SimulationCommand>,
+    mut playback: ResMut<PlaybackState>,
+    settings: Res<SimulationSettings>,
+    gpu: Option<Res<SimulationGpuBuffers>>,
+    mut pending_upload: ResMut<PendingSimulationUpload>,
+    mut spawned: MessageWriter<SimulationSpawned>,
+) {
+    if !commands
+        .read()
+        .any(|command| matches!(command, SimulationCommand::Restart))
+    {
+        return;
+    }
+
+    let Some(_gpu) = gpu else {
+        return;
+    };
+
+    playback.accumulated_sim_time = 0.0;
+
+    let bodies = generate_initial_state(&settings.initial, &settings.physics, &settings.force);
+    queue_upload(&mut pending_upload, &bodies);
+    write_spawned(&mut spawned, &bodies, true);
 }
 
 fn install_simulation_state(
@@ -44,12 +52,22 @@ fn install_simulation_state(
     buffers: &mut Assets<ShaderStorageBuffer>,
     bodies: &BodyArrays,
     spawned: &mut MessageWriter<SimulationSpawned>,
+    pending_readback: bool,
 ) {
-    let (positions, velocities, masses, accelerations) = body_arrays_to_vec4(bodies);
+    let (positions, velocities, masses, accelerations) =
+        super::upload::body_arrays_to_vec4(bodies);
 
     let gpu = SimulationGpuBuffers::new(buffers, positions, velocities, masses, accelerations);
     commands.insert_resource(gpu);
 
+    write_spawned(spawned, bodies, pending_readback);
+}
+
+fn write_spawned(
+    spawned: &mut MessageWriter<SimulationSpawned>,
+    bodies: &BodyArrays,
+    pending_readback: bool,
+) {
     spawned.write(SimulationSpawned {
         positions: bodies
             .positions
@@ -57,5 +75,6 @@ fn install_simulation_state(
             .map(|p| Vec3::new(p[0], p[1], p[2]))
             .collect(),
         masses: bodies.masses.clone(),
+        pending_readback,
     });
 }

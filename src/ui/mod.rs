@@ -1,5 +1,7 @@
 //! Control panel UI (Phase 1+).
 
+mod apply;
+mod draft;
 mod keyboard;
 mod panels;
 
@@ -9,6 +11,7 @@ use bevy_panorbit_camera::EguiFocusIncludesHover;
 
 use crate::simulation::SimViewportSystems;
 
+use apply::UiApplyPlugin;
 use keyboard::playback_shortcuts;
 use panels::ControlPanelsPlugin;
 
@@ -26,7 +29,7 @@ impl Plugin for ControlUiPlugin {
                 EguiPrimaryContextPass,
                 (SimViewportSystems::Layout, SimViewportSystems::CameraViewport).chain(),
             )
-            .add_plugins(ControlPanelsPlugin)
+            .add_plugins((ControlPanelsPlugin, UiApplyPlugin))
             .add_systems(Update, playback_shortcuts);
     }
 }

@@ -16,6 +16,9 @@ use initial::initial_panel;
 use playback::playback_panel;
 use physics::physics_panel;
 
+use crate::ui::apply::UiPendingActions;
+use crate::ui::draft::ControlPanelDraft;
+
 const TITLE_TAB_SPACING: f32 = 10.0;
 const MOBILE_BOTTOM_PADDING: f32 = 16.0;
 
@@ -83,11 +86,13 @@ fn active_tab_panel(
     config: &mut SimulationConfig,
     fps: f32,
     settings: &mut SimulationSettings,
+    draft: &mut ControlPanelDraft,
+    pending: &mut UiPendingActions,
 ) {
     match tab {
         ControlTab::Playback => playback_panel(ui, playback, config, fps),
         ControlTab::Physics => physics_panel(ui, &mut settings.physics),
-        ControlTab::Initial => initial_panel(ui),
+        ControlTab::Initial => initial_panel(ui, draft, pending),
         ControlTab::Force => force_panel(ui),
     }
 }
@@ -106,6 +111,8 @@ fn draw_control_panel(
     mut config: ResMut<SimulationConfig>,
     mut viewport_rect: ResMut<SimulationViewportRect>,
     mut settings: ResMut<SimulationSettings>,
+    mut draft: ResMut<ControlPanelDraft>,
+    mut pending: ResMut<UiPendingActions>,
     fps: Res<FpsDisplay>,
     mut tab: Local<ControlTab>,
 ) -> Result {
@@ -124,6 +131,8 @@ fn draw_control_panel(
             &mut config,
             fps.fps,
             &mut settings,
+            &mut draft,
+            &mut pending,
         );
         if mobile {
             ui.add_space(MOBILE_BOTTOM_PADDING);

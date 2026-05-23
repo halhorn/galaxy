@@ -1,3 +1,4 @@
+mod apply_upload;
 mod bind_groups;
 pub mod buffers;
 mod node;
@@ -19,7 +20,9 @@ use bevy::{
 use crate::simulation::config::SimulationConfig;
 use crate::simulation::playback::PlaybackState;
 use crate::simulation::settings::SimulationSettings;
+use crate::simulation::upload::PendingSimulationUpload;
 
+use apply_upload::apply_pending_simulation_upload;
 use bind_groups::prepare_simulation_bind_groups;
 use pipelines::{init_simulation_compute_pipelines, SimulationComputePipelines};
 
@@ -27,10 +30,12 @@ pub struct SimulationGpuPlugin;
 
 impl Plugin for SimulationGpuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ExtractResourcePlugin::<SimulationGpuBuffers>::default())
+        app.init_resource::<PendingSimulationUpload>()
+            .add_plugins(ExtractResourcePlugin::<SimulationGpuBuffers>::default())
             .add_plugins(ExtractResourcePlugin::<SimulationConfig>::default())
             .add_plugins(ExtractResourcePlugin::<SimulationSettings>::default())
-            .add_plugins(ExtractResourcePlugin::<PlaybackState>::default());
+            .add_plugins(ExtractResourcePlugin::<PlaybackState>::default())
+            .add_plugins(ExtractResourcePlugin::<PendingSimulationUpload>::default());
 
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
@@ -40,7 +45,11 @@ impl Plugin for SimulationGpuPlugin {
             .add_systems(RenderStartup, init_simulation_compute_pipelines)
             .add_systems(
                 Render,
-                prepare_simulation_bind_groups
+                (
+                    apply_pending_simulation_upload,
+                    prepare_simulation_bind_groups,
+                )
+                    .chain()
                     .in_set(RenderSystems::PrepareBindGroups)
                     .run_if(resource_exists::<SimulationComputePipelines>)
                     .run_if(resource_exists::<SimulationGpuBuffers>)
