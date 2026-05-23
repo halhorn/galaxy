@@ -11,18 +11,11 @@ pub fn physics_panel(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
 }
 
 fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
-    ui.horizontal(|ui| {
-        ui.add(
-            egui::Slider::new(&mut physics.g, G_MIN..=G_MAX)
-                .logarithmic(true)
-                .text("G"),
-        );
-        ui.add(
-            egui::DragValue::new(&mut physics.g)
-                .range(G_MIN..=G_MAX)
-                .speed(0.1),
-        );
-    });
+    ui.add(
+        egui::Slider::new(&mut physics.g, G_MIN..=G_MAX)
+            .logarithmic(true)
+            .text("G"),
+    );
     ui.label(format!(
         "Gravitational constant: {:.3} AU³/(M☉·yr²)",
         physics.g
