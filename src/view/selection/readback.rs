@@ -1,3 +1,4 @@
+use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::render::gpu_readback::{Readback, ReadbackComplete};
 use bytemuck::pod_read_unaligned;
@@ -5,6 +6,7 @@ use bytemuck::pod_read_unaligned;
 use crate::model::constants::BODY_COUNT;
 use crate::simulation::SimulationGpuBuffers;
 use crate::simulation::SimulationSpawned;
+use crate::view::sim_viewport::SIMULATION_RENDER_LAYER;
 
 use super::pick::{ReadbackMasses, ReadbackPositions};
 use super::snapshot::SimulationCpuSnapshot;
@@ -13,6 +15,8 @@ pub fn configure_selection_gizmos(mut config_store: ResMut<GizmoConfigStore>) {
     let (config, _) = config_store.config_mut::<DefaultGizmoConfigGroup>();
     config.depth_bias = -0.95;
     config.line.width = 3.0;
+    // Only the 3D simulation camera uses this layer; avoid drawing on the egui Camera2d.
+    config.render_layers = RenderLayers::layer(SIMULATION_RENDER_LAYER);
 }
 
 pub fn setup_readback(mut commands: Commands, gpu: Res<SimulationGpuBuffers>) {

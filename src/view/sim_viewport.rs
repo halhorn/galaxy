@@ -4,6 +4,11 @@ use crate::simulation::{
     logical_rect_to_camera_viewport, SimulationViewportRect, SimViewportSystems,
 };
 
+/// Render layer for the 3D simulation (bodies, gizmos, pan-orbit camera).
+pub const SIMULATION_RENDER_LAYER: usize = 0;
+/// Render layer for the full-window egui overlay camera (no simulation gizmos).
+pub const UI_RENDER_LAYER: usize = 1;
+
 /// Marks the 3D camera that renders the simulation (not the egui overlay camera).
 #[derive(Component)]
 pub struct SimulationCamera;
