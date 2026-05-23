@@ -2,16 +2,13 @@ use bevy_egui::egui;
 
 use crate::model::constants::{
     ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, DISK_MASS_LIMIT_MAX, DISK_MASS_LIMIT_MIN, DISK_R_MAX,
-    DISK_R_MIN, N_STARS_MAX, N_STARS_MIN, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION_MAX,
+    DISK_R_MIN, N_STARS_MAX, N_STARS_MIN, SEED_MAX, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION_MAX,
 };
 
-use crate::ui::apply::UiPendingActions;
 use crate::ui::draft::ControlPanelDraft;
 
 const SECTION_HEADING_SIZE: f32 = 13.0;
 const SECTION_SPACING: f32 = 12.0;
-const APPLY_BUTTON_TOP_PADDING: f32 = 16.0;
-const APPLY_BUTTON_HEIGHT: f32 = 36.0;
 
 fn section_heading(ui: &mut egui::Ui, text: &str) {
     ui.label(
@@ -21,28 +18,28 @@ fn section_heading(ui: &mut egui::Ui, text: &str) {
     );
 }
 
-pub fn initial_panel(
-    ui: &mut egui::Ui,
-    draft: &mut ControlPanelDraft,
-    pending: &mut UiPendingActions,
-) {
+pub fn initial_panel(ui: &mut egui::Ui, draft: &mut ControlPanelDraft) {
     let initial = &mut draft.initial;
 
     section_heading(ui, "Seed");
     ui.horizontal(|ui| {
-        let mut seed_i64 = initial.seed as i64;
+        let mut seed_i64 = initial.seed.min(SEED_MAX) as i64;
         if ui
             .add(
                 egui::DragValue::new(&mut seed_i64)
                     .speed(1)
-                    .range(i64::MIN..=i64::MAX),
+                    .range(0..=SEED_MAX as i64),
             )
             .changed()
         {
-            initial.seed = seed_i64 as u64;
+            initial.seed = seed_i64.clamp(0, SEED_MAX as i64) as u64;
         }
         if ui.button("Random").clicked() {
-            initial.seed = initial.seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            initial.seed = initial
+                .seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1)
+                % (SEED_MAX + 1);
         }
     });
 
@@ -103,14 +100,4 @@ pub fn initial_panel(
         egui::Slider::new(&mut initial.initial_v_perturbation, 0.0..=V_PERTURBATION_MAX)
             .text("Velocity perturbation"),
     );
-
-    ui.add_space(APPLY_BUTTON_TOP_PADDING);
-    let apply = egui::Button::new(egui::RichText::new("Apply & Restart").size(16.0));
-    if ui
-        .add_sized([ui.available_width(), APPLY_BUTTON_HEIGHT], apply)
-        .clicked()
-    {
-        *initial = initial.clone().clamped();
-        pending.restart = true;
-    }
 }

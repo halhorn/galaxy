@@ -27,6 +27,10 @@ pub const MERGE_BUCKET_COUNT: usize = 16_384;
 pub const MERGE_MAX_RADIUS: f32 = 2.0;
 
 /// Initial-condition UI / validation ranges (Phase 3).
+/// RNG seed: up to 8 decimal digits.
+pub const SEED_MAX: u64 = 99_999_999;
+pub const SEED: u64 = 12_345_678;
+
 /// Central star count (0 = disk-only, no bulge stars).
 pub const N_STARS_MIN: u32 = 0;
 pub const N_STARS: u32 = 1;

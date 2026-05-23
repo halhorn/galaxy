@@ -5,7 +5,8 @@ use super::constants::{
     ACTIVE_COUNT, ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_MASS_LIMIT_MAX,
     DISK_MASS_LIMIT_MIN, DISK_MASS_MAX, DISK_MASS_MIN, DISK_R_INNER, DISK_R_MAX, DISK_R_MIN,
     DISK_R_OUTER, MIN_MASS, N_STARS,
-    N_STARS_MAX, N_STARS_MIN, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION, V_PERTURBATION_MAX,
+    N_STARS_MAX, N_STARS_MIN, SEED, SEED_MAX, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION,
+    V_PERTURBATION_MAX,
 };
 use super::force::{pair_acceleration, ForceLaw};
 use super::physics::PhysicsSettings;
@@ -30,7 +31,7 @@ pub struct InitialConditions {
 impl Default for InitialConditions {
     fn default() -> Self {
         Self {
-            seed: 0x6a8e_bc2f,
+            seed: SEED,
             n_stars: N_STARS,
             star_mass: STAR_MASS,
             star_orbit_radius: 3.0,
@@ -60,7 +61,7 @@ impl InitialConditions {
             .disk_mass_max
             .clamp(disk_mass_min + MIN_MASS, DISK_MASS_LIMIT_MAX);
         Self {
-            seed: self.seed,
+            seed: self.seed.min(SEED_MAX),
             n_stars,
             star_mass: self.star_mass.clamp(STAR_MASS_MIN, STAR_MASS_MAX),
             star_orbit_radius: self.star_orbit_radius.max(0.1),

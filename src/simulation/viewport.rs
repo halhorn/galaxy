@@ -4,7 +4,7 @@ use bevy::camera::Viewport;
 /// Viewport width below which the control panel moves to the bottom (phone / narrow window).
 pub const MOBILE_BREAKPOINT_PX: f32 = 768.0;
 pub const MOBILE_PANEL_HEIGHT: f32 = 280.0;
-pub const DESKTOP_PANEL_WIDTH: f32 = 260.0;
+pub const DESKTOP_PANEL_WIDTH: f32 = 300.0;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SimViewportSystems {
