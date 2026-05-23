@@ -27,7 +27,7 @@ struct FpsDisplay {
     fps: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 enum ControlTab {
     #[default]
     Playback,
@@ -124,19 +124,28 @@ fn draw_control_panel(
         ui.add_space(TITLE_TAB_SPACING);
         tab_bar(ui, &mut tab, mobile);
         ui.separator();
-        active_tab_panel(
-            ui,
-            *tab,
-            &mut playback,
-            &mut config,
-            fps.fps,
-            &mut settings,
-            &mut draft,
-            &mut pending,
-        );
-        if mobile {
-            ui.add_space(MOBILE_BOTTOM_PADDING);
-        }
+
+        let scroll_height = ui.available_height();
+        egui::ScrollArea::vertical()
+            .id_salt(*tab)
+            .max_height(scroll_height)
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.set_width(ui.max_rect().width());
+                active_tab_panel(
+                    ui,
+                    *tab,
+                    &mut playback,
+                    &mut config,
+                    fps.fps,
+                    &mut settings,
+                    &mut draft,
+                    &mut pending,
+                );
+                if mobile {
+                    ui.add_space(MOBILE_BOTTOM_PADDING);
+                }
+            });
     };
 
     if mobile {
