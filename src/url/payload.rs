@@ -63,7 +63,7 @@ pub fn encode_applied_state(state: &AppliedUrlState) -> Result<String, String> {
     ));
     pairs.push((
         "dh".into(),
-        SubLevel::encode_from_f32_vec(&[state.initial.disk_height]),
+        SubLevel::encode_from_f32_vec(&[state.initial.disk_elevation_deg]),
     ));
     pairs.push((
         "vpert".into(),
@@ -118,7 +118,7 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
             "dmmax" => initial.disk_mass_max = decode_f32(val)?,
             "drmin" => initial.disk_r_min = decode_f32(val)?,
             "drmax" => initial.disk_r_max = decode_f32(val)?,
-            "dh" => initial.disk_height = decode_f32(val)?,
+            "dh" => initial.disk_elevation_deg = decode_f32(val)?,
             "vpert" => initial.initial_v_perturbation = decode_f32(val)?,
             "active" => initial.active_count = val.decode_to_u32()?,
             "term" => terms.push(parse_force_term(val)?),

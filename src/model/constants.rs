@@ -77,7 +77,10 @@ pub const DISK_R_MAX: f32 = 1000.0;
 /// Default disk inner / outer radius (AU).
 pub const DISK_R_INNER: f32 = 0.01;
 pub const DISK_R_OUTER: f32 = 60.0;
-pub const DISK_HEIGHT_MAX: f32 = 5.0;
+/// Max elevation from the disk plane (degrees). At 90° the disk fills a sphere.
+pub const DISK_ELEVATION_DEG_MAX: f32 = 90.0;
+/// Default half-opening angle from the disk plane (degrees).
+pub const DISK_ELEVATION_DEG: f32 = 1.0;
 pub const V_PERTURBATION: f32 = 0.5;
 pub const V_PERTURBATION_MAX: f32 = 2.0;
 

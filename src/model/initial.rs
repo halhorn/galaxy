@@ -2,7 +2,8 @@ use std::f32::consts::PI;
 
 use super::body::BodyArrays;
 use super::constants::{
-    ACTIVE_COUNT, ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_MASS_LIMIT_MAX,
+    ACTIVE_COUNT, ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_ELEVATION_DEG,
+    DISK_ELEVATION_DEG_MAX, DISK_MASS_LIMIT_MAX,
     DISK_MASS_LIMIT_MIN, DISK_MASS_MAX, DISK_MASS_MIN, DISK_R_INNER, DISK_R_MAX, DISK_R_MIN,
     DISK_R_OUTER, MIN_MASS, N_STARS,
     N_STARS_MAX, N_STARS_MIN, SEED, SEED_MAX, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION,
@@ -23,7 +24,7 @@ pub struct InitialConditions {
     pub disk_mass_max: f32,
     pub disk_r_min: f32,
     pub disk_r_max: f32,
-    pub disk_height: f32,
+    pub disk_elevation_deg: f32,
     pub initial_v_perturbation: f32,
     pub active_count: u32,
 }
@@ -39,7 +40,7 @@ impl Default for InitialConditions {
             disk_mass_max: DISK_MASS_MAX,
             disk_r_min: DISK_R_INNER,
             disk_r_max: DISK_R_OUTER,
-            disk_height: 0.5,
+            disk_elevation_deg: DISK_ELEVATION_DEG,
             initial_v_perturbation: V_PERTURBATION,
             active_count: ACTIVE_COUNT,
         }
@@ -69,7 +70,9 @@ impl InitialConditions {
             disk_mass_max,
             disk_r_min,
             disk_r_max,
-            disk_height: self.disk_height.clamp(0.0, DISK_HEIGHT_MAX),
+            disk_elevation_deg: self
+                .disk_elevation_deg
+                .clamp(0.0, DISK_ELEVATION_DEG_MAX),
             initial_v_perturbation: self
                 .initial_v_perturbation
                 .clamp(0.0, V_PERTURBATION_MAX),
@@ -99,7 +102,6 @@ pub fn generate_initial_state(
     struct DiskSeed {
         index: usize,
         r: f32,
-        theta: f32,
     }
 
     let mut disk_seeds = Vec::with_capacity(n_disk);
@@ -110,12 +112,23 @@ pub fn generate_initial_state(
             + u * (ic.disk_r_max * ic.disk_r_max - disk_r_min * disk_r_min))
             .sqrt();
         let theta: f32 = rng.range(0.0, 2.0 * PI);
-        let height: f32 = rng.range(-ic.disk_height, ic.disk_height);
+        let phi_deg = rng.range(-ic.disk_elevation_deg, ic.disk_elevation_deg);
+        let phi_rad = phi_deg.to_radians();
+        let r_horiz = r * phi_rad.cos();
 
-        let position = [r * theta.cos(), height, r * theta.sin()];
+        let position = [
+            r_horiz * theta.cos(),
+            r * phi_rad.sin(),
+            r_horiz * theta.sin(),
+        ];
         bodies.positions[index] = [position[0], position[1], position[2], 0.0];
         bodies.masses[index] = sample_disk_mass(&mut rng, &ic);
-        disk_seeds.push(DiskSeed { index, r, theta });
+        let r_3d = (position[0] * position[0]
+            + position[1] * position[1]
+            + position[2] * position[2])
+            .sqrt()
+            .max(0.01);
+        disk_seeds.push(DiskSeed { index, r: r_3d });
         index += 1;
     }
 
@@ -123,21 +136,19 @@ pub fn generate_initial_state(
 
     let mut enclosed_mass = central_mass;
     for seed in disk_seeds {
-        let r = seed.r.max(0.01);
+        let r = seed.r;
         let v_circ = force.circular_orbit_speed(r, enclosed_mass, softening_sq);
         enclosed_mass += bodies.masses[seed.index];
 
-        let vr = v_circ * rng.range(-ic.initial_v_perturbation, ic.initial_v_perturbation);
-        let vt = v_circ * (1.0 + rng.range(-ic.initial_v_perturbation, ic.initial_v_perturbation));
-        let vy = v_circ
-            * rng.range(-ic.initial_v_perturbation, ic.initial_v_perturbation)
-            * 0.1;
-        let tangent = [-seed.theta.sin(), 0.0, seed.theta.cos()];
-        let radial = [seed.theta.cos(), 0.0, seed.theta.sin()];
-        let vel = add3(
-            add3(scale3(tangent, vt), scale3(radial, vr)),
-            [0.0, vy, 0.0],
-        );
+        let pos = [
+            bodies.positions[seed.index][0],
+            bodies.positions[seed.index][1],
+            bodies.positions[seed.index][2],
+        ];
+        let base_vel = circular_velocity_about_y(pos, v_circ);
+        let perturb_mag =
+            v_circ * rng.range(-ic.initial_v_perturbation, ic.initial_v_perturbation);
+        let vel = add3(base_vel, scale3(random_unit_vector(&mut rng), perturb_mag));
         bodies.velocities[seed.index] = [vel[0], vel[1], vel[2], 0.0];
     }
 
@@ -239,6 +250,41 @@ fn effective_disk_r_min(ic: &InitialConditions, n_stars: usize) -> f32 {
         0 => ic.disk_r_min,
         1 => ic.disk_r_min.max(1.0),
         _ => ic.disk_r_min.max(ic.star_orbit_radius * 1.5),
+    }
+}
+
+/// Tangential velocity for a circle centered at the origin, rotating about the y-axis.
+fn circular_velocity_about_y(pos: [f32; 3], speed: f32) -> [f32; 3] {
+    let tangent = cross3([0.0, 1.0, 0.0], pos);
+    let r_horiz_sq = tangent[0] * tangent[0] + tangent[2] * tangent[2];
+    if r_horiz_sq > 1e-8 {
+        scale3(tangent, speed * r_horiz_sq.sqrt().recip())
+    } else {
+        // On the y-axis; orbit in the x direction.
+        [speed, 0.0, 0.0]
+    }
+}
+
+#[inline]
+fn cross3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+/// Uniform random unit vector (Marsaglia method).
+fn random_unit_vector(rng: &mut SimpleRng) -> [f32; 3] {
+    loop {
+        let x = rng.range(-1.0, 1.0);
+        let y = rng.range(-1.0, 1.0);
+        let z = rng.range(-1.0, 1.0);
+        let len_sq = x * x + y * y + z * z;
+        if len_sq > 1e-8 && len_sq <= 1.0 {
+            let inv_len = len_sq.sqrt().recip();
+            return [x * inv_len, y * inv_len, z * inv_len];
+        }
     }
 }
 

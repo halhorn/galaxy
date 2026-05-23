@@ -1,8 +1,9 @@
 use bevy_egui::egui;
 
 use crate::model::constants::{
-    ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, DISK_MASS_LIMIT_MAX, DISK_MASS_LIMIT_MIN, DISK_R_MAX,
-    DISK_R_MIN, N_STARS_MAX, N_STARS_MIN, SEED_MAX, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION_MAX,
+    ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, DISK_ELEVATION_DEG_MAX, DISK_MASS_LIMIT_MAX,
+    DISK_MASS_LIMIT_MIN, DISK_R_MAX, DISK_R_MIN, N_STARS_MAX, N_STARS_MIN, SEED_MAX,
+    STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION_MAX,
 };
 
 use crate::ui::draft::ControlPanelDraft;
@@ -96,6 +97,13 @@ pub fn initial_panel(ui: &mut egui::Ui, draft: &mut ControlPanelDraft) {
     if initial.disk_r_max <= initial.disk_r_min {
         initial.disk_r_max = initial.disk_r_min + 0.1;
     }
+    ui.add(
+        egui::Slider::new(
+            &mut initial.disk_elevation_deg,
+            0.0..=DISK_ELEVATION_DEG_MAX,
+        )
+        .text("Elevation (°)"),
+    );
     ui.add(
         egui::Slider::new(&mut initial.initial_v_perturbation, 0.0..=V_PERTURBATION_MAX)
             .text("Velocity perturbation"),
