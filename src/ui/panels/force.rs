@@ -13,6 +13,8 @@ const SECTION_HEADING_SIZE: f32 = 13.0;
 const SECTION_SPACING: f32 = 12.0;
 const APPLY_BUTTON_TOP_PADDING: f32 = 16.0;
 const APPLY_BUTTON_HEIGHT: f32 = 36.0;
+const DISPLAY_EXPONENT_MIN: i32 = FORCE_EXPONENT_MIN + 1;
+const DISPLAY_EXPONENT_MAX: i32 = FORCE_EXPONENT_MAX + 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ForcePreset {
@@ -53,6 +55,46 @@ fn section_heading(ui: &mut egui::Ui, text: &str) {
     );
 }
 
+fn show_term_row(ui: &mut egui::Ui, index: usize, term: &mut ForceTerm, removable: bool) -> bool {
+    let mut remove = false;
+
+    ui.horizontal(|ui| {
+        let sign_label = if term.sign >= 0 { "−" } else { "+" };
+        if ui.button(sign_label).clicked() {
+            term.sign = -term.sign;
+        }
+
+        ui.add_sized(
+            [120.0, 20.0],
+            egui::Slider::new(
+                &mut term.coefficient,
+                FORCE_COEFFICIENT_MIN..=FORCE_COEFFICIENT_MAX,
+            )
+            .logarithmic(true)
+            .show_value(true),
+        );
+
+        ui.label(" * d ^ ");
+
+        let mut display_exponent = term.exponent + 1;
+        egui::ComboBox::from_id_salt(index)
+            .width(52.0)
+            .selected_text(display_exponent.to_string())
+            .show_ui(ui, |ui| {
+                for exp in DISPLAY_EXPONENT_MIN..=DISPLAY_EXPONENT_MAX {
+                    ui.selectable_value(&mut display_exponent, exp, exp.to_string());
+                }
+            });
+        term.exponent = display_exponent - 1;
+
+        if removable && ui.button("Remove").clicked() {
+            remove = true;
+        }
+    });
+
+    remove
+}
+
 pub fn force_panel(
     ui: &mut egui::Ui,
     draft: &mut ControlPanelDraft,
@@ -84,37 +126,9 @@ pub fn force_panel(
             let mut remove_at = None;
             for index in 0..term_count {
                 let term = &mut force.terms[index];
-                ui.horizontal(|ui| {
-                    let sign_label = if term.sign >= 0 { "−" } else { "+" };
-                    if ui.button(sign_label).clicked() {
-                        term.sign = -term.sign;
-                    }
-
-                    let mut display_exponent = term.exponent + 1;
-                    if ui
-                        .add(
-                            egui::DragValue::new(&mut display_exponent)
-                                .speed(1)
-                                .range((FORCE_EXPONENT_MIN + 1)..=(FORCE_EXPONENT_MAX + 1)),
-                        )
-                        .changed()
-                    {
-                        term.exponent = display_exponent - 1;
-                    }
-
-                    ui.add(
-                        egui::Slider::new(
-                            &mut term.coefficient,
-                            FORCE_COEFFICIENT_MIN..=FORCE_COEFFICIENT_MAX,
-                        )
-                        .logarithmic(true)
-                        .text("c"),
-                    );
-
-                    if term_count > 1 && ui.button("Remove").clicked() {
-                        remove_at = Some(index);
-                    }
-                });
+                if show_term_row(ui, index, term, term_count > 1) {
+                    remove_at = Some(index);
+                }
             }
 
             if let Some(index) = remove_at {

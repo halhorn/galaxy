@@ -168,7 +168,7 @@ fn format_term(term: &ForceTerm) -> String {
     // and sign is inverted (approaching −, receding +).
     let sign_char = if term.sign >= 0 { '-' } else { '+' };
     let coeff = format_coefficient(term.coefficient);
-    format!("{sign_char}{coeff}·d^{}", term.exponent + 1)
+    format!("{sign_char}{coeff} * d^{}", term.exponent + 1)
 }
 
 fn format_coefficient(c: f32) -> String {
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn display_string_formats_newtonian() {
         let force = ForceLaw::newtonian(G);
-        assert_eq!(force.display_string(), "-G·d^-2");
+        assert_eq!(force.display_string(), "-G * d^-2");
     }
 
     #[test]
