@@ -13,6 +13,8 @@ pub struct BodiesMaterial {
     pub positions: Handle<ShaderStorageBuffer>,
     #[storage(1, read_only)]
     pub masses: Handle<ShaderStorageBuffer>,
+    #[storage(2, read_only)]
+    pub merge_aux: Handle<ShaderStorageBuffer>,
 }
 
 impl Material for BodiesMaterial {

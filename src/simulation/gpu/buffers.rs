@@ -17,7 +17,7 @@ pub struct SimulationGpuBuffers {
     pub accelerations_new: Handle<ShaderStorageBuffer>,
     /// Merge pass: spatial hash bucket heads (`u32::MAX` = empty).
     pub merge_bucket_heads: Handle<ShaderStorageBuffer>,
-    /// Merge pass: `[0..n)` bucket_next, `[n..2n)` absorbed (0/1).
+    /// Merge pass: `[0..n)` bucket_next, `[n..2n)` merge flash (see merge.wgsl).
     pub merge_aux: Handle<ShaderStorageBuffer>,
     /// Merge pass: smallest survivor index `i` per absorbed target `j`.
     pub merge_owner: Handle<ShaderStorageBuffer>,

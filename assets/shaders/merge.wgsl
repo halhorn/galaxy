@@ -1,7 +1,10 @@
 // Parallel merge (≤8 storage buffers for WebGPU). Scratch: [0..n) pos+mass, [n..2n) vel.
-// merge_aux: [0..n) bucket_next, [n..2n) absorbed.
+// merge_aux: [0..n) bucket_next, [n..2n) merge_flash.
+// merge_flash packs: bit0 = absorbed this pass, bits1+ = frames remaining (0..10).
 
 const INVALID: u32 = 0xFFFFFFFFu;
+const MERGE_FLASH_FRAMES: u32 = 10u;
+const ABSORBED_THIS_PASS: u32 = 1u;
 
 struct Params {
     n: u32,
@@ -34,6 +37,22 @@ fn absorbed(j: u32) -> u32 {
 
 fn set_absorbed(j: u32, value: u32) {
     merge_aux[params.n + j] = value;
+}
+
+fn flash_counter(v: u32) -> u32 {
+    return v >> 1u;
+}
+
+fn absorbed_this_pass(v: u32) -> bool {
+    return (v & ABSORBED_THIS_PASS) != 0u;
+}
+
+fn encode_flash(flash: u32, absorbed: bool) -> u32 {
+    var v = flash << 1u;
+    if (absorbed) {
+        v |= ABSORBED_THIS_PASS;
+    }
+    return v;
 }
 
 fn snap_pos(i: u32) -> vec3<f32> {
@@ -70,7 +89,7 @@ fn cell_coords(pos: vec3<f32>) -> vec3<i32> {
 }
 
 fn mergeable(i: u32, j: u32) -> bool {
-    if (j <= i || absorbed(j) != 0u || snap_mass(j) <= params.min_mass) {
+    if (j <= i || absorbed_this_pass(absorbed(j)) || snap_mass(j) <= params.min_mass) {
         return false;
     }
     if (snap_mass(i) <= params.min_mass) {
@@ -92,7 +111,8 @@ fn absorb(i: u32, j: u32) {
     masses[i] = new_mass;
     masses[j] = 0.0;
     accelerations[i] = vec4<f32>(0.0);
-    set_absorbed(j, 1u);
+    set_absorbed(i, encode_flash(MERGE_FLASH_FRAMES, false));
+    set_absorbed(j, encode_flash(MERGE_FLASH_FRAMES, true));
 }
 
 @compute @workgroup_size(256)
@@ -101,7 +121,12 @@ fn prepare(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (i >= params.n) {
         return;
     }
-    set_absorbed(i, 0u);
+    let flash = flash_counter(absorbed(i));
+    var next_flash = flash;
+    if (flash > 0u) {
+        next_flash = flash - 1u;
+    }
+    set_absorbed(i, next_flash << 1u);
     set_bucket_next(i, INVALID);
     scratch[i] = vec4<f32>(positions[i].xyz, masses[i]);
     scratch[params.n + i] = velocities[i];
@@ -182,7 +207,7 @@ fn apply_merge(@builtin(global_invocation_id) gid: vec3<u32>) {
                 var j = atomicLoad(&bucket_heads[b]);
                 while (j != INVALID) {
                     let j_next = bucket_next(j);
-                    if (atomicLoad(&merge_owner[j]) == i && absorbed(j) == 0u && mergeable(i, j)) {
+                    if (atomicLoad(&merge_owner[j]) == i && !absorbed_this_pass(absorbed(j)) && mergeable(i, j)) {
                         absorb(i, j);
                     }
                     j = j_next;
