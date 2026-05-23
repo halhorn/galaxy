@@ -93,7 +93,7 @@ fn active_tab_panel(
         ControlTab::Playback => playback_panel(ui, playback, config, fps),
         ControlTab::Physics => physics_panel(ui, &mut settings.physics),
         ControlTab::Initial => initial_panel(ui, draft, pending),
-        ControlTab::Force => force_panel(ui),
+        ControlTab::Force => force_panel(ui, draft, settings, pending),
     }
 }
 
