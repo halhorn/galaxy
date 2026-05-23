@@ -5,25 +5,23 @@ pub const BODY_COUNT: usize = 10_000;
 
 pub const WORKGROUP_SIZE: u32 = 256;
 
-/// Gravitational constant in AU³/(M☉·yr²).
-pub const G: f32 = 4.0 * PI * PI;
-
-/// Plummer softening length (AU).
-pub const SOFTENING: f32 = 0.01;
-
 /// Bodies with `mass <= MIN_MASS` are inactive (merged away).
 pub const MIN_MASS: f32 = 1e-8;
 
-/// Fraction of combined radii at which bodies merge (legacy `merger.rs`).
-pub const MERGE_RADIUS_FACTOR: f32 = 0.15;
-
-/// UI / runtime clamp ranges for physics parameters.
+/// Gravitational constant in AU³/(M☉·yr²).
 pub const G_MIN: f32 = 1.0;
+pub const G: f32 = 4.0 * PI * PI;
 pub const G_MAX: f32 = 100.0;
+
+/// Plummer softening length (AU).
 pub const SOFTENING_MIN: f32 = 0.001;
+pub const SOFTENING: f32 = 0.01;
 pub const SOFTENING_MAX: f32 = 0.1;
-pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.05;
-pub const MERGE_RADIUS_FACTOR_MAX: f32 = 0.5;
+
+/// Fraction of combined radii at which bodies merge (legacy `merger.rs`).
+pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.00;
+pub const MERGE_RADIUS_FACTOR: f32 = 0.00;
+pub const MERGE_RADIUS_FACTOR_MAX: f32 = 1.0;
 
 /// Spatial hash buckets for the merge pass.
 pub const MERGE_BUCKET_COUNT: usize = 16_384;
