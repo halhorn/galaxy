@@ -7,7 +7,7 @@ use super::constants::{
     DISK_R_OUTER, MIN_MASS, N_STARS,
     N_STARS_MAX, N_STARS_MIN, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION, V_PERTURBATION_MAX,
 };
-use super::force::ForceLaw;
+use super::force::{pair_acceleration, ForceLaw};
 use super::physics::PhysicsSettings;
 use super::rng::SimpleRng;
 
@@ -84,12 +84,12 @@ pub fn generate_initial_state(
 ) -> BodyArrays {
     let ic = ic.clone().clamped();
     let mut rng = SimpleRng::new(ic.seed);
-    let g = physics.g;
+    let softening_sq = physics.softening_sq();
     let n_stars = ic.n_stars as usize;
     let active = ic.active_count as usize;
 
     let mut bodies = BodyArrays::with_capacity(ic.active_count);
-    let mut index = place_central_stars(&ic, g, &mut bodies);
+    let mut index = place_central_stars(&ic, force, softening_sq, &mut bodies);
 
     let central_mass = ic.star_mass * n_stars as f32;
     let n_disk = active.saturating_sub(index);
@@ -123,7 +123,7 @@ pub fn generate_initial_state(
     let mut enclosed_mass = central_mass;
     for seed in disk_seeds {
         let r = seed.r.max(0.01);
-        let v_circ = (g * enclosed_mass / r).sqrt();
+        let v_circ = force.circular_orbit_speed(r, enclosed_mass, softening_sq);
         enclosed_mass += bodies.masses[seed.index];
 
         let vr = v_circ * rng.range(-ic.initial_v_perturbation, ic.initial_v_perturbation);
@@ -159,7 +159,12 @@ fn sample_disk_mass(rng: &mut SimpleRng, ic: &InitialConditions) -> f32 {
 
 /// Place one or more massive stars at the galaxy center.
 /// `n_stars == 1` → single bulge star at the origin; `n >= 2` → equal-mass ring binary/multiple.
-fn place_central_stars(ic: &InitialConditions, g: f32, bodies: &mut BodyArrays) -> usize {
+fn place_central_stars(
+    ic: &InitialConditions,
+    force: &ForceLaw,
+    softening_sq: f32,
+    bodies: &mut BodyArrays,
+) -> usize {
     let n_stars = ic.n_stars as usize;
     if n_stars == 0 {
         return 0;
@@ -172,10 +177,13 @@ fn place_central_stars(ic: &InitialConditions, g: f32, bodies: &mut BodyArrays) 
         return 1;
     }
 
-    let chord_sum: f32 = (1..n_stars)
-        .map(|k| 1.0 / (2.0 * (PI * k as f32 / n_stars as f32).sin()))
-        .sum();
-    let v_star = (g * ic.star_mass * chord_sum / ic.star_orbit_radius).sqrt();
+    let v_star = central_ring_orbit_speed(
+        n_stars,
+        ic.star_mass,
+        ic.star_orbit_radius,
+        force,
+        softening_sq,
+    );
 
     for i in 0..n_stars {
         let angle = i as f32 * 2.0 * PI / n_stars as f32;
@@ -192,6 +200,36 @@ fn place_central_stars(ic: &InitialConditions, g: f32, bodies: &mut BodyArrays) 
     }
 
     n_stars
+}
+
+/// Orbit speed for equal-mass stars on a regular polygon, from pairwise forces under `force`.
+fn central_ring_orbit_speed(
+    n_stars: usize,
+    star_mass: f32,
+    orbit_radius: f32,
+    force: &ForceLaw,
+    softening_sq: f32,
+) -> f32 {
+    let orbit_radius = orbit_radius.max(0.01);
+    let pos_i = [orbit_radius, 0.0, 0.0];
+    let mut acc = [0.0f32; 3];
+    for k in 1..n_stars {
+        let angle = k as f32 * 2.0 * PI / n_stars as f32;
+        let pos_j = [
+            orbit_radius * angle.cos(),
+            0.0,
+            orbit_radius * angle.sin(),
+        ];
+        acc = add3(
+            acc,
+            pair_acceleration(pos_i, pos_j, star_mass, softening_sq, force),
+        );
+    }
+    let centripetal = -acc[0];
+    if centripetal <= 0.0 {
+        return 0.0;
+    }
+    (orbit_radius * centripetal).sqrt()
 }
 
 /// Keep the disk outside the central star system so bulge stars stay visible.
@@ -352,6 +390,34 @@ mod tests {
             assert!(bodies.masses[slot] >= 0.05 - 1e-6);
             assert!(bodies.masses[slot] <= 0.15 + 1e-6);
         }
+    }
+
+    #[test]
+    fn disk_uses_force_law_for_circular_speed() {
+        let ic = InitialConditions {
+            n_stars: 1,
+            active_count: 64,
+            seed: 7,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let newton = ForceLaw::newtonian(physics.g);
+        let repulsive = ForceLaw::preset_gravity_plus_repulsion(physics.g);
+        let newton_bodies = generate_initial_state(&ic, &physics, &newton);
+        let repulsive_bodies = generate_initial_state(&ic, &physics, &repulsive);
+        let newton_speeds: f32 = (1..ic.active_count as usize)
+            .map(|i| {
+                let v = newton_bodies.velocities[i];
+                (v[0] * v[0] + v[2] * v[2]).sqrt()
+            })
+            .sum();
+        let repulsive_speeds: f32 = (1..ic.active_count as usize)
+            .map(|i| {
+                let v = repulsive_bodies.velocities[i];
+                (v[0] * v[0] + v[2] * v[2]).sqrt()
+            })
+            .sum();
+        assert!(repulsive_speeds < newton_speeds);
     }
 
     #[test]

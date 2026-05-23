@@ -120,6 +120,19 @@ impl ForceLaw {
         })
     }
 
+    /// Circular-orbit speed at radius `r` around enclosed mass `M`, consistent with this force law.
+    pub fn circular_orbit_speed(&self, r: f32, enclosed_mass: f32, softening_sq: f32) -> f32 {
+        let r = r.max(0.01);
+        let pos_body = [r, 0.0, 0.0];
+        let pos_center = [0.0, 0.0, 0.0];
+        let acc = pair_acceleration(pos_body, pos_center, enclosed_mass, softening_sq, self);
+        let centripetal = -acc[0];
+        if centripetal <= 0.0 {
+            return 0.0;
+        }
+        (r * centripetal).sqrt()
+    }
+
     pub fn compute_accelerations(
         &self,
         bodies: &BodyArrays,
@@ -254,6 +267,16 @@ mod tests {
     fn display_string_formats_newtonian() {
         let force = ForceLaw::newtonian(G);
         assert_eq!(force.display_string(), "-G * d^-2");
+    }
+
+    #[test]
+    fn circular_orbit_speed_matches_newtonian() {
+        let force = ForceLaw::newtonian(G);
+        let r = 10.0;
+        let mass = 100.0;
+        let v = force.circular_orbit_speed(r, mass, 0.0);
+        let expected = (G * mass / r).sqrt();
+        assert!((v - expected).abs() < 1e-4);
     }
 
     #[test]
