@@ -1,4 +1,3 @@
-mod force;
 mod initial;
 mod playback;
 mod physics;
@@ -11,7 +10,6 @@ use crate::simulation::{
     DESKTOP_PANEL_WIDTH, MOBILE_BREAKPOINT_PX, MOBILE_PANEL_HEIGHT,
 };
 
-use force::force_panel;
 use initial::initial_panel;
 use playback::playback_panel;
 use physics::physics_panel;
@@ -33,7 +31,6 @@ enum ControlTab {
     Playback,
     Physics,
     Initial,
-    Force,
 }
 
 impl ControlTab {
@@ -43,11 +40,10 @@ impl ControlTab {
             Self::Physics => "Physics",
             Self::Initial if compact => "Initial",
             Self::Initial => "Initial Conditions",
-            Self::Force => "Force Law",
         }
     }
 
-    const ALL: [Self; 4] = [Self::Playback, Self::Physics, Self::Initial, Self::Force];
+    const ALL: [Self; 3] = [Self::Playback, Self::Physics, Self::Initial];
 }
 
 fn update_fps_display(time: Res<Time>, mut fps: ResMut<FpsDisplay>, mut smoothed: Local<f32>) {
@@ -92,9 +88,8 @@ fn active_tab_panel(
 ) {
     match tab {
         ControlTab::Playback => playback_panel(ui, playback, config, fps),
-        ControlTab::Physics => physics_panel(ui, &mut settings.physics),
+        ControlTab::Physics => physics_panel(ui, settings),
         ControlTab::Initial => initial_panel(ui, draft, pending),
-        ControlTab::Force => force_panel(ui, draft, settings, pending),
     }
 }
 

@@ -254,7 +254,7 @@ fn add3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::constants::{ACTIVE_COUNT, ACTIVE_COUNT_MAX, BODY_COUNT};
+    use crate::model::constants::{ACTIVE_COUNT, ACTIVE_COUNT_MAX, BODY_COUNT, G};
     use crate::model::PhysicsSettings;
 
     #[test]
@@ -291,7 +291,7 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let force = ForceLaw::newtonian(physics.g);
+        let force = ForceLaw::newtonian(G);
         let bodies = generate_initial_state(&ic, &physics, &force);
         assert_eq!(bodies.active_count, ACTIVE_COUNT_MAX);
         assert_eq!(bodies.masses.len(), BODY_COUNT);
@@ -308,7 +308,7 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let force = ForceLaw::newtonian(physics.g);
+        let force = ForceLaw::newtonian(G);
         let a = generate_initial_state(&ic, &physics, &force);
         let b = generate_initial_state(&ic, &physics, &force);
         assert_eq!(a.positions, b.positions);
@@ -324,7 +324,7 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let force = ForceLaw::newtonian(physics.g);
+        let force = ForceLaw::newtonian(G);
         let bodies = generate_initial_state(&ic, &physics, &force);
         assert_eq!(bodies.masses[0], ic.star_mass);
         assert_eq!(bodies.positions[0][0], 0.0);
@@ -343,7 +343,7 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let force = ForceLaw::newtonian(physics.g);
+        let force = ForceLaw::newtonian(G);
         let bodies = generate_initial_state(&ic, &physics, &force);
         for slot in 0..4 {
             assert_eq!(bodies.masses[slot], ic.star_mass);
@@ -362,7 +362,7 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let force = ForceLaw::newtonian(physics.g);
+        let force = ForceLaw::newtonian(G);
         let bodies = generate_initial_state(&ic, &physics, &force);
         let min_disk_r = (0..ic.active_count as usize)
             .filter(|&i| i >= 2)
@@ -384,7 +384,7 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let force = ForceLaw::newtonian(physics.g);
+        let force = ForceLaw::newtonian(G);
         let bodies = generate_initial_state(&ic, &physics, &force);
         for slot in 0..ic.active_count as usize {
             assert!(bodies.masses[slot] >= 0.05 - 1e-6);
@@ -401,8 +401,8 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let newton = ForceLaw::newtonian(physics.g);
-        let repulsive = ForceLaw::preset_gravity_plus_repulsion(physics.g);
+        let newton = ForceLaw::newtonian(G);
+        let repulsive = ForceLaw::preset_gravity_plus_repulsion(G);
         let newton_bodies = generate_initial_state(&ic, &physics, &newton);
         let repulsive_bodies = generate_initial_state(&ic, &physics, &repulsive);
         let newton_speeds: f32 = (1..ic.active_count as usize)
@@ -427,7 +427,7 @@ mod tests {
             ..InitialConditions::default()
         };
         let physics = PhysicsSettings::default();
-        let force = ForceLaw::newtonian(physics.g);
+        let force = ForceLaw::newtonian(G);
         let bodies = generate_initial_state(&ic, &physics, &force);
         for slot in ic.active_count as usize..BODY_COUNT {
             assert_eq!(bodies.masses[slot], 0.0);

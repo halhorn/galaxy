@@ -51,7 +51,6 @@ fn hydrate_from_url(
     };
 
     draft.initial = state.initial.clone();
-    draft.force = state.force.clone();
     state.apply_to_resources(&mut settings, &mut config, &mut playback);
     hydrated.0 = true;
 }

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
 
+use crate::model::constants::G;
 use crate::model::{ForceLaw, InitialConditions, PhysicsSettings};
 
 /// Simulation parameters (Main world → Render world).
@@ -15,7 +16,7 @@ impl Default for SimulationSettings {
     fn default() -> Self {
         let physics = PhysicsSettings::default();
         Self {
-            force: ForceLaw::newtonian(physics.g),
+            force: ForceLaw::newtonian(G),
             physics,
             initial: InitialConditions::default(),
         }

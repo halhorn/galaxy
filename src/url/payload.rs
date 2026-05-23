@@ -12,7 +12,6 @@ pub fn encode_applied_state(state: &AppliedUrlState) -> Result<String, String> {
 
     let mut pairs: Vec<(String, SubLevel)> = Vec::new();
     pairs.push(("v".into(), SubLevel::new(URL_STATE_VERSION.to_string())));
-    pairs.push(("g".into(), SubLevel::encode_from_f32_vec(&[state.physics.g])));
     pairs.push((
         "soft".into(),
         SubLevel::encode_from_f32_vec(&[state.physics.softening]),
@@ -94,12 +93,13 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
     let mut initial = AppliedUrlState::default().initial;
     let mut time_scale = None;
     let mut paused = None;
+    let mut legacy_g = None;
     let mut terms = Vec::<ForceTerm>::new();
 
     for (key, val) in top.pairs() {
         match key.as_str() {
             "v" => version = Some(val.decode_to_u32()?),
-            "g" => physics.g = decode_f32(val)?,
+            "g" => legacy_g = Some(decode_f32(val)?),
             "soft" => physics.softening = decode_f32(val)?,
             "merge" => physics.merge_radius_factor = decode_f32(val)?,
             "ts" => time_scale = Some(decode_f32(val)?),
@@ -125,7 +125,10 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
         return Err(format!("unsupported url state version {version}"));
     }
 
-    let force = force_from_terms(terms)?;
+    let mut force = force_from_terms(terms)?;
+    if let Some(g) = legacy_g {
+        force.set_gravity_coefficient(g);
+    }
 
     let state = AppliedUrlState {
         physics,
@@ -141,8 +144,7 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
 }
 
 fn validate_applied_state(state: &AppliedUrlState) -> Result<(), String> {
-    if !state.physics.g.is_finite()
-        || !state.physics.softening.is_finite()
+    if !state.physics.softening.is_finite()
         || !state.physics.merge_radius_factor.is_finite()
     {
         return Err("non-finite physics parameter".into());
@@ -222,6 +224,7 @@ fn force_from_terms(terms: Vec<ForceTerm>) -> Result<ForceLaw, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::constants::G;
     use crate::model::{ForceLaw, InitialConditions};
 
     #[test]
@@ -235,9 +238,8 @@ mod tests {
 
     #[test]
     fn round_trip_custom_force_and_initial() {
-        let physics = AppliedUrlState::default().physics;
         let state = AppliedUrlState {
-            force: ForceLaw::preset_gravity_plus_repulsion(physics.g),
+            force: ForceLaw::preset_gravity_plus_repulsion(G),
             initial: InitialConditions {
                 seed: 42,
                 n_stars: 3,

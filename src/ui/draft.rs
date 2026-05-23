@@ -1,20 +1,17 @@
 use bevy::prelude::*;
 
-use crate::model::{ForceLaw, InitialConditions};
+use crate::model::InitialConditions;
 
-/// Draft values for restart-only panels (initial conditions, force law).
+/// Draft values for restart-only panels (initial conditions).
 #[derive(Resource, Debug, Clone, PartialEq)]
 pub struct ControlPanelDraft {
     pub initial: InitialConditions,
-    pub force: ForceLaw,
 }
 
 impl Default for ControlPanelDraft {
     fn default() -> Self {
-        let physics = crate::model::PhysicsSettings::default();
         Self {
             initial: InitialConditions::default(),
-            force: ForceLaw::newtonian(physics.g),
         }
     }
 }

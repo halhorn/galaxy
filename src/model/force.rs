@@ -1,7 +1,7 @@
 use super::body::BodyArrays;
 use super::constants::{
     BODY_COUNT, FORCE_COEFFICIENT_MAX, FORCE_COEFFICIENT_MIN, FORCE_EXPONENT_MAX,
-    FORCE_EXPONENT_MIN, G, MIN_MASS,
+    FORCE_EXPONENT_MIN, G, G_MAX, G_MIN, MIN_MASS,
 };
 use super::physics::PhysicsSettings;
 
@@ -22,6 +22,27 @@ pub struct ForceLaw {
 }
 
 impl ForceLaw {
+    pub fn gravity_coefficient(&self) -> f32 {
+        self.terms
+            .iter()
+            .take(self.term_count as usize)
+            .find(|term| term.sign == 1 && term.exponent == -3)
+            .map(|term| term.coefficient)
+            .unwrap_or(G)
+    }
+
+    pub fn set_gravity_coefficient(&mut self, g: f32) {
+        let g = g.clamp(G_MIN, G_MAX);
+        if let Some(term) = self
+            .terms
+            .iter_mut()
+            .take(self.term_count as usize)
+            .find(|term| term.sign == 1 && term.exponent == -3)
+        {
+            term.coefficient = g;
+        }
+    }
+
     pub fn newtonian(g: f32) -> Self {
         let mut terms = empty_terms();
         terms[0] = ForceTerm {

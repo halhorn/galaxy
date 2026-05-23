@@ -1,3 +1,4 @@
+use crate::model::constants::G;
 use crate::model::{ForceLaw, InitialConditions, PhysicsSettings};
 use crate::simulation::{PlaybackMode, PlaybackState, SimulationConfig, SimulationSettings};
 
@@ -15,7 +16,7 @@ impl Default for AppliedUrlState {
     fn default() -> Self {
         let physics = PhysicsSettings::default();
         Self {
-            force: ForceLaw::newtonian(physics.g),
+            force: ForceLaw::newtonian(G),
             physics,
             initial: InitialConditions::default(),
             time_scale: SimulationConfig::default().time_scale,

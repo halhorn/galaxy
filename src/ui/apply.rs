@@ -27,8 +27,6 @@ pub fn process_pending_actions(
 
     settings.initial = draft.initial.clone().clamped();
     draft.initial = settings.initial.clone();
-    settings.force = draft.force.clone().clamped();
-    draft.force = settings.force.clone();
     commands.write(SimulationCommand::Restart);
 }
 
