@@ -16,7 +16,7 @@ use crate::ui::apply::UiPendingActions;
 use crate::ui::draft::ControlPanelDraft;
 
 const PANEL_TOP_PADDING: f32 = 10.0 * 2.0 / 3.0;
-const TITLE_TAB_SPACING: f32 = 16.0;
+const TITLE_TAB_SPACING: f32 = 12.0;
 const MOBILE_BOTTOM_PADDING: f32 = 16.0;
 const ICON_BUTTON_SIZE: egui::Vec2 = egui::Vec2::new(28.0, 28.0);
 const RESTART_PLAY_GAP: f32 = 6.0;
