@@ -211,10 +211,6 @@ fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
             .logarithmic(true)
             .text("Softening (AU)"),
     );
-    ui.label(format!(
-        "Plummer softening: {:.4} AU",
-        physics.softening,
-    ));
 
     ui.add(
         egui::Slider::new(
@@ -223,10 +219,6 @@ fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
         )
         .text("Merge radius factor"),
     );
-    ui.label(format!(
-        "Merge distance: {:.2}× combined radii",
-        physics.merge_radius_factor,
-    ));
 }
 
 pub fn physics_panel(
@@ -239,7 +231,6 @@ pub fn physics_panel(
             .logarithmic(true)
             .text("Time scale"),
     );
-    ui.label(format!("Time scale: {:.2}x", config.time_scale));
 
     ui.add_space(SECTION_SPACING);
     physics_slider_group(ui, &mut settings.physics);
