@@ -7,12 +7,16 @@ use bevy::{
     shader::PipelineCacheError,
 };
 
-use crate::model::constants::{dispatch_workgroups, MERGE_BUCKET_COUNT};
+use crate::model::constants::{BODY_COUNT, MERGE_BUCKET_COUNT, WORKGROUP_SIZE};
 
 use crate::simulation::playback::PlaybackState;
 
 use super::bind_groups::SimulationComputeBindGroups;
 use super::pipelines::SimulationComputePipelines;
+
+fn dispatch_workgroups() -> u32 {
+    (BODY_COUNT as u32).div_ceil(WORKGROUP_SIZE)
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct SimulationComputeLabel;

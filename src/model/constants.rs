@@ -29,22 +29,29 @@ pub const MERGE_BUCKET_COUNT: usize = 16_384;
 /// Conservative max body radius (AU) for merge grid; large enough for merged stars.
 pub const MERGE_MAX_RADIUS: f32 = 2.0;
 
-pub fn merge_inv_cell_size(merge_radius_factor: f32) -> f32 {
-    let cell_size = (2.0 * MERGE_MAX_RADIUS * merge_radius_factor).max(0.01);
-    1.0 / cell_size
-}
-
-pub fn dispatch_workgroups() -> u32 {
-    (BODY_COUNT as u32).div_ceil(WORKGROUP_SIZE)
-}
-
 /// Initial-condition UI / validation ranges (Phase 3).
-pub const N_STARS_MIN: u32 = 1;
+/// Central star count (0 = disk-only, no bulge stars).
+pub const N_STARS_MIN: u32 = 0;
+pub const N_STARS: u32 = 0;
 pub const N_STARS_MAX: u32 = 4;
 pub const ACTIVE_COUNT_MIN: u32 = 2;
 pub const ACTIVE_COUNT_MAX: u32 = BODY_COUNT as u32;
 
+pub const STAR_MASS_MIN: f32 = 0.1;
+pub const STAR_MASS: f32 = 100.0;
+pub const STAR_MASS_MAX: f32 = 100000.0;
+
+/// Disk star mass uniform range [min, max] in M☉ (slider limits).
+pub const DISK_MASS_LIMIT_MIN: f32 = 0.001;
+pub const DISK_MASS_LIMIT_MAX: f32 = 1000.0;
+/// Default disk mass uniform range.
+pub const DISK_MASS_MIN: f32 = 0.02;
+pub const DISK_MASS_MAX: f32 = 0.37;
+
 pub const DISK_R_MIN: f32 = 1.0;
-pub const DISK_R_MAX: f32 = 120.0;
+pub const DISK_R_MAX: f32 = 1000.0;
+/// Default disk inner / outer radius (AU).
+pub const DISK_R_INNER: f32 = 1.0;
+pub const DISK_R_OUTER: f32 = 60.0;
 pub const DISK_HEIGHT_MAX: f32 = 5.0;
 pub const V_PERTURBATION_MAX: f32 = 0.5;

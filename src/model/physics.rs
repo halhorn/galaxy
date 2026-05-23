@@ -1,5 +1,5 @@
 use super::constants::{
-    merge_inv_cell_size, G, G_MAX, G_MIN, MERGE_RADIUS_FACTOR, MERGE_RADIUS_FACTOR_MAX,
+    G, G_MAX, G_MIN, MERGE_MAX_RADIUS, MERGE_RADIUS_FACTOR, MERGE_RADIUS_FACTOR_MAX,
     MERGE_RADIUS_FACTOR_MIN, SOFTENING, SOFTENING_MAX, SOFTENING_MIN,
 };
 
@@ -27,7 +27,8 @@ impl PhysicsSettings {
     }
 
     pub fn merge_inv_cell_size(&self) -> f32 {
-        merge_inv_cell_size(self.merge_radius_factor)
+        let cell_size = (2.0 * MERGE_MAX_RADIUS * self.merge_radius_factor).max(0.01);
+        1.0 / cell_size
     }
 
     pub fn clamped(self) -> Self {

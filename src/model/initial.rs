@@ -2,8 +2,10 @@ use std::f32::consts::PI;
 
 use super::body::BodyArrays;
 use super::constants::{
-    ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_R_MAX, DISK_R_MIN,
-    MIN_MASS, N_STARS_MAX, N_STARS_MIN, V_PERTURBATION_MAX,
+    ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_MASS_LIMIT_MAX,
+    DISK_MASS_LIMIT_MIN, DISK_MASS_MAX, DISK_MASS_MIN, DISK_R_INNER, DISK_R_MAX, DISK_R_MIN,
+    DISK_R_OUTER, MIN_MASS, N_STARS,
+    N_STARS_MAX, N_STARS_MIN, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION_MAX,
 };
 use super::force::ForceLaw;
 use super::physics::PhysicsSettings;
@@ -16,8 +18,8 @@ pub struct InitialConditions {
     pub n_stars: u32,
     pub star_mass: f32,
     pub star_orbit_radius: f32,
-    pub disk_radius_min: f32,
-    pub disk_radius_max: f32,
+    pub disk_mass_min: f32,
+    pub disk_mass_max: f32,
     pub disk_r_min: f32,
     pub disk_r_max: f32,
     pub disk_height: f32,
@@ -29,13 +31,13 @@ impl Default for InitialConditions {
     fn default() -> Self {
         Self {
             seed: 0x6a8e_bc2f,
-            n_stars: 2,
-            star_mass: 1.0,
-            star_orbit_radius: 10.0,
-            disk_radius_min: 0.14,
-            disk_radius_max: 0.36,
-            disk_r_min: 5.0,
-            disk_r_max: 60.0,
+            n_stars: N_STARS,
+            star_mass: STAR_MASS,
+            star_orbit_radius: 3.0,
+            disk_mass_min: DISK_MASS_MIN,
+            disk_mass_max: DISK_MASS_MAX,
+            disk_r_min: DISK_R_INNER,
+            disk_r_max: DISK_R_OUTER,
             disk_height: 0.5,
             initial_v_perturbation: 0.02,
             active_count: BODY_COUNT as u32,
@@ -51,13 +53,19 @@ impl InitialConditions {
             .clamp(ACTIVE_COUNT_MIN.max(n_stars), ACTIVE_COUNT_MAX);
         let disk_r_min = self.disk_r_min.clamp(DISK_R_MIN, DISK_R_MAX);
         let disk_r_max = self.disk_r_max.clamp(disk_r_min + 0.1, DISK_R_MAX);
+        let disk_mass_min = self
+            .disk_mass_min
+            .clamp(DISK_MASS_LIMIT_MIN, DISK_MASS_LIMIT_MAX);
+        let disk_mass_max = self
+            .disk_mass_max
+            .clamp(disk_mass_min + MIN_MASS, DISK_MASS_LIMIT_MAX);
         Self {
             seed: self.seed,
             n_stars,
-            star_mass: self.star_mass.max(MIN_MASS),
+            star_mass: self.star_mass.clamp(STAR_MASS_MIN, STAR_MASS_MAX),
             star_orbit_radius: self.star_orbit_radius.max(0.1),
-            disk_radius_min: self.disk_radius_min.max(MIN_MASS),
-            disk_radius_max: self.disk_radius_max.max(self.disk_radius_min + 0.01),
+            disk_mass_min,
+            disk_mass_max,
             disk_r_min,
             disk_r_max,
             disk_height: self.disk_height.clamp(0.0, DISK_HEIGHT_MAX),
@@ -80,30 +88,11 @@ pub fn generate_initial_state(
     let active = ic.active_count as usize;
 
     let mut bodies = BodyArrays::with_capacity(ic.active_count);
-    let mut index = 0usize;
-
-    let chord_sum: f32 = (1..n_stars)
-        .map(|k| 1.0 / (2.0 * (PI * k as f32 / n_stars as f32).sin()))
-        .sum();
-    let v_star = (g * ic.star_mass * chord_sum / ic.star_orbit_radius).sqrt();
-
-    for i in 0..n_stars {
-        let angle = i as f32 * 2.0 * PI / n_stars as f32;
-        let position = [
-            ic.star_orbit_radius * angle.cos(),
-            0.0,
-            ic.star_orbit_radius * angle.sin(),
-        ];
-        let velocity = [-angle.sin(), 0.0, angle.cos()];
-        let velocity = scale3(velocity, v_star);
-        bodies.positions[index] = [position[0], position[1], position[2], 0.0];
-        bodies.velocities[index] = [velocity[0], velocity[1], velocity[2], 0.0];
-        bodies.masses[index] = ic.star_mass;
-        index += 1;
-    }
+    let mut index = place_central_stars(ic, g, &mut bodies);
 
     let central_mass = ic.star_mass * n_stars as f32;
     let n_disk = active.saturating_sub(index);
+    let disk_r_min = effective_disk_r_min(ic, n_stars);
 
     struct DiskSeed {
         index: usize,
@@ -115,16 +104,15 @@ pub fn generate_initial_state(
 
     for _ in 0..n_disk {
         let u: f32 = rng.range(0.0, 1.0);
-        let r = (ic.disk_r_min * ic.disk_r_min
-            + u * (ic.disk_r_max * ic.disk_r_max - ic.disk_r_min * ic.disk_r_min))
+        let r = (disk_r_min * disk_r_min
+            + u * (ic.disk_r_max * ic.disk_r_max - disk_r_min * disk_r_min))
             .sqrt();
         let theta: f32 = rng.range(0.0, 2.0 * PI);
         let height: f32 = rng.range(-ic.disk_height, ic.disk_height);
 
         let position = [r * theta.cos(), height, r * theta.sin()];
         bodies.positions[index] = [position[0], position[1], position[2], 0.0];
-        let radius = rng.range(ic.disk_radius_min, ic.disk_radius_max);
-        bodies.masses[index] = (radius / 0.5_f32).powi(3);
+        bodies.masses[index] = sample_disk_mass(&mut rng, ic);
         disk_seeds.push(DiskSeed { index, r, theta });
         index += 1;
     }
@@ -163,6 +151,57 @@ pub fn generate_initial_state(
     bodies
 }
 
+fn sample_disk_mass(rng: &mut SimpleRng, ic: &InitialConditions) -> f32 {
+    rng.range(ic.disk_mass_min, ic.disk_mass_max)
+        .max(MIN_MASS)
+}
+
+/// Place one or more massive stars at the galaxy center.
+/// `n_stars == 1` → single bulge star at the origin; `n >= 2` → equal-mass ring binary/multiple.
+fn place_central_stars(ic: &InitialConditions, g: f32, bodies: &mut BodyArrays) -> usize {
+    let n_stars = ic.n_stars as usize;
+    if n_stars == 0 {
+        return 0;
+    }
+
+    if n_stars == 1 {
+        bodies.positions[0] = [0.0, 0.0, 0.0, 0.0];
+        bodies.velocities[0] = [0.0, 0.0, 0.0, 0.0];
+        bodies.masses[0] = ic.star_mass;
+        return 1;
+    }
+
+    let chord_sum: f32 = (1..n_stars)
+        .map(|k| 1.0 / (2.0 * (PI * k as f32 / n_stars as f32).sin()))
+        .sum();
+    let v_star = (g * ic.star_mass * chord_sum / ic.star_orbit_radius).sqrt();
+
+    for i in 0..n_stars {
+        let angle = i as f32 * 2.0 * PI / n_stars as f32;
+        let position = [
+            ic.star_orbit_radius * angle.cos(),
+            0.0,
+            ic.star_orbit_radius * angle.sin(),
+        ];
+        let tangent = [-angle.sin(), 0.0, angle.cos()];
+        let velocity = scale3(tangent, v_star);
+        bodies.positions[i] = [position[0], position[1], position[2], 0.0];
+        bodies.velocities[i] = [velocity[0], velocity[1], velocity[2], 0.0];
+        bodies.masses[i] = ic.star_mass;
+    }
+
+    n_stars
+}
+
+/// Keep the disk outside the central star system so bulge stars stay visible.
+fn effective_disk_r_min(ic: &InitialConditions, n_stars: usize) -> f32 {
+    match n_stars {
+        0 => ic.disk_r_min,
+        1 => ic.disk_r_min.max(1.0),
+        _ => ic.disk_r_min.max(ic.star_orbit_radius * 1.5),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,6 +235,82 @@ mod tests {
         assert_eq!(a.positions, b.positions);
         assert_eq!(a.velocities, b.velocities);
         assert_eq!(a.masses, b.masses);
+    }
+
+    #[test]
+    fn single_central_star_sits_at_origin() {
+        let ic = InitialConditions {
+            n_stars: 1,
+            active_count: 32,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let force = ForceLaw::newtonian(physics.g);
+        let bodies = generate_initial_state(&ic, &physics, &force);
+        assert_eq!(bodies.masses[0], ic.star_mass);
+        assert_eq!(bodies.positions[0][0], 0.0);
+        assert_eq!(bodies.positions[0][1], 0.0);
+        assert_eq!(bodies.positions[0][2], 0.0);
+        for slot in 1..ic.active_count as usize {
+            assert!(bodies.masses[slot] < ic.star_mass);
+        }
+    }
+
+    #[test]
+    fn multiple_central_stars_use_first_slots() {
+        let ic = InitialConditions {
+            n_stars: 4,
+            active_count: 64,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let force = ForceLaw::newtonian(physics.g);
+        let bodies = generate_initial_state(&ic, &physics, &force);
+        for slot in 0..4 {
+            assert_eq!(bodies.masses[slot], ic.star_mass);
+        }
+        for slot in 4..ic.active_count as usize {
+            assert!(bodies.masses[slot] < ic.star_mass);
+        }
+    }
+
+    #[test]
+    fn disk_starts_outside_central_ring() {
+        let ic = InitialConditions {
+            n_stars: 2,
+            disk_r_min: 1.0,
+            active_count: 32,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let force = ForceLaw::newtonian(physics.g);
+        let bodies = generate_initial_state(&ic, &physics, &force);
+        let min_disk_r = (0..ic.active_count as usize)
+            .filter(|&i| i >= 2)
+            .map(|i| {
+                let p = bodies.positions[i];
+                (p[0] * p[0] + p[2] * p[2]).sqrt()
+            })
+            .fold(f32::INFINITY, f32::min);
+        assert!(min_disk_r >= ic.star_orbit_radius * 1.5 - 0.01);
+    }
+
+    #[test]
+    fn disk_masses_are_uniform_in_range() {
+        let ic = InitialConditions {
+            n_stars: 0,
+            disk_mass_min: 0.05,
+            disk_mass_max: 0.15,
+            active_count: 256,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let force = ForceLaw::newtonian(physics.g);
+        let bodies = generate_initial_state(&ic, &physics, &force);
+        for slot in 0..ic.active_count as usize {
+            assert!(bodies.masses[slot] >= 0.05 - 1e-6);
+            assert!(bodies.masses[slot] <= 0.15 + 1e-6);
+        }
     }
 
     #[test]
