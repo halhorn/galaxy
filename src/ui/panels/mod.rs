@@ -41,7 +41,8 @@ impl ControlTab {
     fn label(self, compact: bool) -> &'static str {
         match self {
             Self::Physics => "Physics",
-            Self::Display => "Display",
+            Self::Display if compact => "Display",
+            Self::Display => "Display & Other",
             Self::Initial if compact => "Initial",
             Self::Initial => "Initial Conditions",
         }
@@ -138,12 +139,13 @@ fn active_tab_panel(
     config: &mut SimulationConfig,
     settings: &mut SimulationSettings,
     draft: &mut ControlPanelDraft,
+    pending: &mut UiPendingActions,
 ) {
     match tab {
         ControlTab::Physics => physics_panel(ui, settings),
         ControlTab::Initial => initial_panel(ui, draft),
         ControlTab::Display => {
-            display_panel(ui, config);
+            display_panel(ui, config, pending);
             *config = config.clone().clamped();
         }
     }
@@ -192,6 +194,7 @@ fn draw_control_panel(
                     &mut config,
                     &mut settings,
                     &mut draft,
+                    &mut pending,
                 );
                 if mobile {
                     ui.add_space(MOBILE_BOTTOM_PADDING);
