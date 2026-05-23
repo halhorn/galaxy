@@ -203,6 +203,16 @@ fn effective_disk_r_min(ic: &InitialConditions, n_stars: usize) -> f32 {
     }
 }
 
+#[inline]
+fn scale3(v: [f32; 3], s: f32) -> [f32; 3] {
+    [v[0] * s, v[1] * s, v[2] * s]
+}
+
+#[inline]
+fn add3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -359,14 +369,4 @@ mod tests {
             assert_eq!(bodies.velocities[slot], [0.0; 4]);
         }
     }
-}
-
-#[inline]
-fn scale3(v: [f32; 3], s: f32) -> [f32; 3] {
-    [v[0] * s, v[1] * s, v[2] * s]
-}
-
-#[inline]
-fn add3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }

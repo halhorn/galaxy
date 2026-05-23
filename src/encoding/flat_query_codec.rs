@@ -31,7 +31,7 @@ const WIRE_F32_NEAR_ZERO_EPS: f64 = 1e-7;
 ///
 /// `key=value` を左から右へ並べた順序付き列。値側は [`SubLevel`] がデコード済み文字列として保持する。
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TopLevel(pub Vec<(String, SubLevel)>);
+pub(crate) struct TopLevel(pub(crate) Vec<(String, SubLevel)>);
 
 impl TopLevel {
     /// `&` 区切りの本文をトップレベル構造へ復号する。
@@ -43,7 +43,7 @@ impl TopLevel {
     ///
     /// # 戻り値
     /// 復号に成功した [`TopLevel`]。
-    pub fn decode(query_body: &str) -> Result<Self, String> {
+    pub(crate) fn decode(query_body: &str) -> Result<Self, String> {
         let mut out = Vec::new();
         for raw_seg in query_body.split('&') {
             if raw_seg.is_empty() {
@@ -65,7 +65,7 @@ impl TopLevel {
     ///
     /// # 戻り値
     /// `&` で連結した文字列（先頭に `?` / `#` は付けない）。
-    pub fn encode(&self) -> String {
+    pub(crate) fn encode(&self) -> String {
         self.0
             .iter()
             .map(|(k, v)| format!("{k}={}", v.as_str()))
@@ -77,7 +77,7 @@ impl TopLevel {
     ///
     /// # 戻り値
     /// ワイヤの左から右への順序のスライス。
-    pub fn pairs(&self) -> &[(String, SubLevel)] {
+    pub(crate) fn pairs(&self) -> &[(String, SubLevel)] {
         &self.0
     }
 
@@ -120,7 +120,7 @@ impl TopLevel {
 
 /// トップレベルで `=` の右に来る値。パーセント復号済みのワイヤ文字列を保持する。
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SubLevel(pub String);
+pub(crate) struct SubLevel(pub(crate) String);
 
 impl SubLevel {
     /// 値側文字列から構築する（通常は [`TopLevel::decode`] が復号したもの）。
@@ -130,7 +130,7 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// ラップした [`SubLevel`]。
-    pub fn new(s: impl Into<String>) -> Self {
+    pub(crate) fn new(s: impl Into<String>) -> Self {
         Self(s.into())
     }
 
@@ -138,7 +138,7 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// デコード済みの UTF-8 スライス。
-    pub fn as_str(&self) -> &str {
+    pub(crate) fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
@@ -146,7 +146,7 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// パースに成功した [`f32`] のベクトル。無効トークンがあると `Err`。
-    pub fn decode_to_f32_vec(&self) -> Result<Vec<f32>, String> {
+    pub(crate) fn decode_to_f32_vec(&self) -> Result<Vec<f32>, String> {
         let tokens = self.decode_to_str_vec();
         let mut out = Vec::with_capacity(tokens.len());
         for t in tokens {
@@ -162,7 +162,7 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// [`SubLevelKv`]。構文が規約に合わないときは `Err`。
-    pub fn decode_to_kv_pairs(&self) -> Result<SubLevelKv, String> {
+    pub(crate) fn decode_to_kv_pairs(&self) -> Result<SubLevelKv, String> {
         let mut out = Vec::new();
         for raw in self.as_str().split(',') {
             let seg = raw.trim();
@@ -185,7 +185,7 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// パースした [`u32`]。形式が合わないときは `Err`。
-    pub fn decode_to_u32(&self) -> Result<u32, String> {
+    pub(crate) fn decode_to_u32(&self) -> Result<u32, String> {
         self.as_str()
             .trim()
             .parse::<u32>()
@@ -196,7 +196,7 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// 復号した [`bool`]。
-    pub fn decode_to_bool_bin(&self) -> Result<bool, String> {
+    pub(crate) fn decode_to_bool_bin(&self) -> Result<bool, String> {
         match self.as_str().trim() {
             "1" | "true" => Ok(true),
             "0" | "false" => Ok(false),
@@ -213,7 +213,7 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// 結合した [`SubLevel`]（`values` が空なら空文字列のサブレベル）。
-    pub fn encode_from_f32_vec(values: &[f32]) -> Self {
+    pub(crate) fn encode_from_f32_vec(values: &[f32]) -> Self {
         Self(
             values
                 .iter()
@@ -233,7 +233,8 @@ impl SubLevel {
     ///
     /// # 戻り値
     /// 結合した [`SubLevel`]（`entries` が空なら空文字列のサブレベル）。
-    pub fn encode_from_kv_f32(entries: &[(&str, f32)]) -> Self {
+    #[cfg(test)]
+    pub(crate) fn encode_from_kv_f32(entries: &[(&str, f32)]) -> Self {
         Self(
             entries
                 .iter()
@@ -266,7 +267,7 @@ impl SubLevel {
             return "0.0".to_string();
         }
         let m_i = log10.floor() as i32;
-        let frac_digits = ((WIRE_F32_SIG_FIGS - 1) - m_i).max(0).min(20) as usize;
+        let frac_digits = ((WIRE_F32_SIG_FIGS - 1) - m_i).clamp(0, 20) as usize;
         let rendered = format!("{:.*}", frac_digits, v);
         Self::ensure_wire_float_has_decimal_point(&Self::trim_trailing_fraction_zeros(&rendered))
     }
@@ -346,7 +347,7 @@ impl SubLevel {
 
 /// [`SubLevel::decode_to_kv_pairs`] の結果型。順序付き `(サブキー, 値)` を保持する。
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SubLevelKv(pub Vec<(String, String)>);
+pub(crate) struct SubLevelKv(pub(crate) Vec<(String, String)>);
 
 impl SubLevelKv {
     /// 先頭から走査し、最初に一致したサブキーの値を [`f32`] にする。
@@ -356,12 +357,28 @@ impl SubLevelKv {
     ///
     /// # 戻り値
     /// パースに成功した [`f32`]。キーが無い・数値でない場合は `Err`。
-    pub fn get_f32(&self, sub_key: &str) -> Result<f32, String> {
+    pub(crate) fn get_f32(&self, sub_key: &str) -> Result<f32, String> {
+        self.get_str(sub_key)?
+            .parse::<f32>()
+            .map_err(|_| format!("bad f32 for {sub_key}"))
+    }
+
+    pub(crate) fn get_i32(&self, sub_key: &str) -> Result<i32, String> {
+        self.get_str(sub_key)?
+            .parse::<i32>()
+            .map_err(|_| format!("bad i32 for {sub_key}"))
+    }
+
+    pub(crate) fn get_i8(&self, sub_key: &str) -> Result<i8, String> {
+        self.get_str(sub_key)?
+            .parse::<i8>()
+            .map_err(|_| format!("bad i8 for {sub_key}"))
+    }
+
+    pub(crate) fn get_str(&self, sub_key: &str) -> Result<&str, String> {
         for (k, v) in &self.0 {
             if k == sub_key {
-                return v
-                    .parse::<f32>()
-                    .map_err(|_| format!("bad f32 for {sub_key}: {v}"));
+                return Ok(v.trim());
             }
         }
         Err(format!("missing sub-key {sub_key}"))
@@ -452,7 +469,7 @@ mod tests {
     #[test]
     fn wire_f32_six_sig_figs_trims_trailing_zeros() {
         assert_eq!(
-            SubLevel::encode_from_f32_vec(&[3.10000002f32]).as_str(),
+            SubLevel::encode_from_f32_vec(&[3.100_000_2_f32]).as_str(),
             "3.1"
         );
     }

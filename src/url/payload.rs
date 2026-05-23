@@ -1,5 +1,6 @@
 use crate::encoding::{SubLevel, TopLevel};
 use crate::model::force::{ForceLaw, ForceTerm, MAX_FORCE_TERMS};
+use crate::simulation::SimulationConfig;
 
 use super::applied::AppliedUrlState;
 
@@ -183,40 +184,13 @@ fn decode_pause(val: &SubLevel) -> Result<bool, String> {
 
 fn parse_force_term(val: &SubLevel) -> Result<ForceTerm, String> {
     let wire = val.decode_to_kv_pairs()?;
-    let sign = parse_i8_kv(&wire, "s")?;
-    let exponent = parse_i32_kv(&wire, "e")?;
-    let coefficient = wire
-        .get_f32("c")
-        .map_err(|_| "missing or invalid term coefficient".to_string())?;
     Ok(ForceTerm {
-        sign,
-        exponent,
-        coefficient,
+        sign: wire.get_i8("s")?,
+        exponent: wire.get_i32("e")?,
+        coefficient: wire
+            .get_f32("c")
+            .map_err(|_| "missing or invalid term coefficient".to_string())?,
     })
-}
-
-fn parse_i8_kv(wire: &crate::encoding::SubLevelKv, key: &str) -> Result<i8, String> {
-    let raw = wire
-        .0
-        .iter()
-        .find(|(k, _)| k == key)
-        .map(|(_, v)| v.as_str())
-        .ok_or_else(|| format!("missing sub-key {key}"))?;
-    raw.trim()
-        .parse::<i8>()
-        .map_err(|_| format!("bad i8 for {key}: {raw}"))
-}
-
-fn parse_i32_kv(wire: &crate::encoding::SubLevelKv, key: &str) -> Result<i32, String> {
-    let raw = wire
-        .0
-        .iter()
-        .find(|(k, _)| k == key)
-        .map(|(_, v)| v.as_str())
-        .ok_or_else(|| format!("missing sub-key {key}"))?;
-    raw.trim()
-        .parse::<i32>()
-        .map_err(|_| format!("bad i32 for {key}: {raw}"))
 }
 
 fn force_from_terms(terms: Vec<ForceTerm>) -> Result<ForceLaw, String> {
@@ -244,8 +218,6 @@ fn force_from_terms(terms: Vec<ForceTerm>) -> Result<ForceLaw, String> {
     }
     Ok(force)
 }
-
-use crate::simulation::SimulationConfig;
 
 #[cfg(test)]
 mod tests {

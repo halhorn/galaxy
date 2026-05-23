@@ -1,3 +1,7 @@
+//! Platform-specific [`UrlFragmentPort`] implementations.
+
+#![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+
 use std::sync::Arc;
 
 use crate::ports::url_fragment::UrlFragmentPort;

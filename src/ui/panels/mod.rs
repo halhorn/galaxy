@@ -79,6 +79,7 @@ fn tab_bar(ui: &mut egui::Ui, tab: &mut ControlTab, compact: bool) {
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn active_tab_panel(
     ui: &mut egui::Ui,
     tab: ControlTab,
@@ -104,6 +105,7 @@ fn egui_rect_to_bevy(rect: egui::Rect) -> Rect {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_control_panel(
     mut contexts: EguiContexts,
     windows: Query<&Window>,
