@@ -217,6 +217,7 @@ fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
             &mut physics.merge_radius_factor,
             MERGE_RADIUS_FACTOR_MIN..=MERGE_RADIUS_FACTOR_MAX,
         )
+        .logarithmic(true)
         .text("Merge radius factor"),
     );
 }

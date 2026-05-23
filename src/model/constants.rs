@@ -16,9 +16,9 @@ pub const SOFTENING: f32 = 0.01;
 pub const SOFTENING_MAX: f32 = 0.1;
 
 /// Fraction of combined radii at which bodies merge (legacy `merger.rs`).
-pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.00;
+pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.01;
 pub const MERGE_RADIUS_FACTOR: f32 = 1.0;
-pub const MERGE_RADIUS_FACTOR_MAX: f32 = 10.0;
+pub const MERGE_RADIUS_FACTOR_MAX: f32 = 100.0;
 
 /// Spatial hash buckets for the merge pass.
 pub const MERGE_BUCKET_COUNT: usize = 16_384;
