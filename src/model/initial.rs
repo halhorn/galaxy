@@ -38,7 +38,7 @@ impl Default for InitialConditions {
             disk_mass_max: DISK_MASS_MAX,
             disk_r_min: DISK_R_INNER,
             disk_r_max: DISK_R_OUTER,
-            disk_height: DISK_HEIGHT,
+            disk_height: 0.5,
             initial_v_perturbation: V_PERTURBATION,
             active_count: BODY_COUNT as u32,
         }
