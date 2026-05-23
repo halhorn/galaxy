@@ -30,9 +30,9 @@ impl ForcePreset {
 
     fn label(self) -> &'static str {
         match self {
-            Self::Newtonian => "Newtonian (+d^-3)",
-            Self::GravityPlusRepulsion => "Gravity + repulsion (+d^-3 -d^-2)",
-            Self::Repulsive => "Repulsive demo (-d^-1)",
+            Self::Newtonian => "Newtonian (−d^-2)",
+            Self::GravityPlusRepulsion => "Gravity + repulsion (−d^-2 +d^-1)",
+            Self::Repulsive => "Repulsive demo (+d^0)",
         }
     }
 
@@ -85,21 +85,21 @@ pub fn force_panel(
             for index in 0..term_count {
                 let term = &mut force.terms[index];
                 ui.horizontal(|ui| {
-                    let sign_label = if term.sign >= 0 { "+" } else { "-" };
+                    let sign_label = if term.sign >= 0 { "−" } else { "+" };
                     if ui.button(sign_label).clicked() {
                         term.sign = -term.sign;
                     }
 
-                    let mut exponent = term.exponent;
+                    let mut display_exponent = term.exponent + 1;
                     if ui
                         .add(
-                            egui::DragValue::new(&mut exponent)
+                            egui::DragValue::new(&mut display_exponent)
                                 .speed(1)
-                                .range(FORCE_EXPONENT_MIN..=FORCE_EXPONENT_MAX),
+                                .range((FORCE_EXPONENT_MIN + 1)..=(FORCE_EXPONENT_MAX + 1)),
                         )
                         .changed()
                     {
-                        term.exponent = exponent;
+                        term.exponent = display_exponent - 1;
                     }
 
                     ui.add(
@@ -166,7 +166,7 @@ pub fn force_panel(
 fn show_warnings(ui: &mut egui::Ui, force: &ForceLaw, physics: &PhysicsSettings) {
     let mut warnings = Vec::new();
     if force.needs_softening_warning() && physics.softening <= 0.0 {
-        warnings.push("Terms with N ≤ −2 need softening > 0 to avoid singularities.");
+        warnings.push("Terms with N ≤ −1 need softening > 0 to avoid singularities.");
     }
     if force.has_repulsive_terms() {
         warnings.push("Repulsive terms can destabilize the simulation quickly.");

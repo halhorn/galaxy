@@ -164,9 +164,11 @@ fn empty_terms() -> [ForceTerm; MAX_FORCE_TERMS] {
 }
 
 fn format_term(term: &ForceTerm) -> String {
-    let sign_char = if term.sign >= 0 { '+' } else { '-' };
+    // Display convention: exponent is one higher than computation (d^N along r ↔ d^(N-2) force),
+    // and sign is inverted (approaching −, receding +).
+    let sign_char = if term.sign >= 0 { '-' } else { '+' };
     let coeff = format_coefficient(term.coefficient);
-    format!("{sign_char}{coeff}·d^{}", term.exponent)
+    format!("{sign_char}{coeff}·d^{}", term.exponent + 1)
 }
 
 fn format_coefficient(c: f32) -> String {
@@ -251,7 +253,7 @@ mod tests {
     #[test]
     fn display_string_formats_newtonian() {
         let force = ForceLaw::newtonian(G);
-        assert_eq!(force.display_string(), "+G·d^-3");
+        assert_eq!(force.display_string(), "-G·d^-2");
     }
 
     #[test]
