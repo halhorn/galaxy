@@ -43,22 +43,41 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let pos_i = positions[i].xyz;
     var acc = vec3<f32>(0.0, 0.0, 0.0);
 
-    for (var j = 0u; j < params.n; j++) {
-        if (j == i || masses[j] <= params.min_mass) {
-            continue;
+    if (params.term_count == 1u) {
+        let term = params.terms[0];
+        if (term.coefficient != 0.0) {
+            let sign = f32(term.sign);
+            let coeff = term.coefficient;
+            let exp = term.exponent;
+            for (var j = 0u; j < params.n; j++) {
+                if (j == i || masses[j] <= params.min_mass) {
+                    continue;
+                }
+                let r = positions[j].xyz - pos_i;
+                let dist_sq = dot(r, r) + params.softening_sq;
+                let d = sqrt(dist_sq);
+                let power = pow_d(exp, dist_sq, d);
+                acc += r * sign * coeff * power * masses[j];
+            }
         }
-        let r = positions[j].xyz - pos_i;
-        let dist_sq = dot(r, r) + params.softening_sq;
-        let d = sqrt(dist_sq);
-
-        for (var k = 0u; k < params.term_count; k++) {
-            let term = params.terms[k];
-            if (term.coefficient == 0.0) {
+    } else {
+        for (var j = 0u; j < params.n; j++) {
+            if (j == i || masses[j] <= params.min_mass) {
                 continue;
             }
-            let sign = f32(term.sign);
-            let power = pow_d(term.exponent, dist_sq, d);
-            acc += r * sign * term.coefficient * power * masses[j];
+            let r = positions[j].xyz - pos_i;
+            let dist_sq = dot(r, r) + params.softening_sq;
+            let d = sqrt(dist_sq);
+
+            for (var k = 0u; k < params.term_count; k++) {
+                let term = params.terms[k];
+                if (term.coefficient == 0.0) {
+                    continue;
+                }
+                let sign = f32(term.sign);
+                let power = pow_d(term.exponent, dist_sq, d);
+                acc += r * sign * term.coefficient * power * masses[j];
+            }
         }
     }
 

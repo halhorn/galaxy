@@ -12,7 +12,7 @@ use crate::simulation::config::SimulationConfig;
 use crate::simulation::settings::SimulationSettings;
 
 use super::buffers::SimulationGpuBuffers;
-use super::params::{GravityParams, IntegrateParams, MergeParams};
+use super::params::{ColorsParams, GravityParams, IntegrateParams, MergeParams};
 use super::pipelines::SimulationComputePipelines;
 
 #[derive(Resource)]
@@ -20,6 +20,7 @@ pub struct SimulationComputeBindGroups {
     pub gravity: BindGroup,
     pub integrate: BindGroup,
     pub merge: BindGroup,
+    pub colors: BindGroup,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -61,6 +62,9 @@ pub fn prepare_simulation_bind_groups(
     let Some(merge_scratch) = storage.get(&gpu_buffers.merge_scratch) else {
         return;
     };
+    let Some(body_colors) = storage.get(&gpu_buffers.body_colors) else {
+        return;
+    };
 
     let gravity_params = GravityParams::from_settings(&settings);
     let mut gravity_uniform = UniformBuffer::from(gravity_params);
@@ -73,6 +77,10 @@ pub fn prepare_simulation_bind_groups(
     let merge_params = MergeParams::from_settings(&settings);
     let mut merge_uniform = UniformBuffer::from(merge_params);
     merge_uniform.write_buffer(&render_device, &render_queue);
+
+    let colors_params = ColorsParams::from_settings(&settings);
+    let mut colors_uniform = UniformBuffer::from(colors_params);
+    colors_uniform.write_buffer(&render_device, &render_queue);
 
     let gravity_bind_group = render_device.create_bind_group(
         None,
@@ -114,9 +122,21 @@ pub fn prepare_simulation_bind_groups(
         )),
     );
 
+    let colors_bind_group = render_device.create_bind_group(
+        None,
+        &pipeline_cache.get_bind_group_layout(&pipelines.colors_layout),
+        &BindGroupEntries::sequential((
+            masses.buffer.as_entire_buffer_binding(),
+            merge_aux.buffer.as_entire_buffer_binding(),
+            body_colors.buffer.as_entire_buffer_binding(),
+            &colors_uniform,
+        )),
+    );
+
     commands.insert_resource(SimulationComputeBindGroups {
         gravity: gravity_bind_group,
         integrate: integrate_bind_group,
         merge: merge_bind_group,
+        colors: colors_bind_group,
     });
 }

@@ -48,8 +48,7 @@ impl SimulationUploadPayload {
     pub fn from_bodies(bodies: &BodyArrays) -> Self {
         let (positions, velocities, masses, accelerations) = body_arrays_to_vec4(bodies);
 
-        let mut merge_aux = vec![u32::MAX; BODY_COUNT * 2];
-        merge_aux[BODY_COUNT..].fill(0);
+        let merge_aux = vec![0u32; BODY_COUNT * 2];
 
         Self {
             positions,

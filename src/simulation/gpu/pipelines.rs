@@ -8,15 +8,16 @@ use bevy::{
     },
 };
 
-use crate::simulation::shaders::{GRAVITY_SHADER, INTEGRATE_SHADER, MERGE_SHADER};
+use crate::simulation::shaders::{GRAVITY_SHADER, INTEGRATE_SHADER, MERGE_SHADER, COLORS_SHADER};
 
-use super::params::{GravityParams, IntegrateParams, MergeParams};
+use super::params::{ColorsParams, GravityParams, IntegrateParams, MergeParams};
 
 #[derive(Resource)]
 pub struct SimulationComputePipelines {
     pub gravity_layout: BindGroupLayoutDescriptor,
     pub integrate_layout: BindGroupLayoutDescriptor,
     pub merge_layout: BindGroupLayoutDescriptor,
+    pub colors_layout: BindGroupLayoutDescriptor,
     pub gravity: CachedComputePipelineId,
     pub position_step: CachedComputePipelineId,
     pub velocity_step: CachedComputePipelineId,
@@ -26,6 +27,7 @@ pub struct SimulationComputePipelines {
     pub merge_build_grid: CachedComputePipelineId,
     pub merge_find_owner: CachedComputePipelineId,
     pub merge_apply: CachedComputePipelineId,
+    pub colors: CachedComputePipelineId,
 }
 
 pub fn init_simulation_compute_pipelines(
@@ -78,6 +80,19 @@ pub fn init_simulation_compute_pipelines(
         ),
     );
 
+    let colors_layout = BindGroupLayoutDescriptor::new(
+        "colors_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::COMPUTE,
+            (
+                storage_buffer_read_only::<Vec<f32>>(false),
+                storage_buffer_read_only::<Vec<u32>>(false),
+                storage_buffer::<Vec<Vec4>>(false),
+                uniform_buffer::<ColorsParams>(false),
+            ),
+        ),
+    );
+
     let gravity = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
         label: Some("gravity".into()),
         layout: vec![gravity_layout.clone()],
@@ -110,10 +125,19 @@ pub fn init_simulation_compute_pipelines(
     let merge_find_owner = queue_merge_pipeline(&pipeline_cache, &merge_layout, "find_owner");
     let merge_apply = queue_merge_pipeline(&pipeline_cache, &merge_layout, "apply_merge");
 
+    let colors = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+        label: Some("colors".into()),
+        layout: vec![colors_layout.clone()],
+        shader: COLORS_SHADER.clone(),
+        entry_point: Some(Cow::from("main")),
+        ..default()
+    });
+
     commands.insert_resource(SimulationComputePipelines {
         gravity_layout,
         integrate_layout,
         merge_layout,
+        colors_layout,
         gravity,
         position_step,
         velocity_step,
@@ -123,6 +147,7 @@ pub fn init_simulation_compute_pipelines(
         merge_build_grid,
         merge_find_owner,
         merge_apply,
+        colors,
     });
 }
 

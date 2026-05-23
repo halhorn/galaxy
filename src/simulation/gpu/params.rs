@@ -93,3 +93,22 @@ impl MergeParams {
         }
     }
 }
+
+#[derive(Clone, Copy, ShaderType)]
+pub struct ColorsParams {
+    pub n: u32,
+    pub min_mass: f32,
+    pub _pad0: f32,
+    pub _pad1: f32,
+}
+
+impl ColorsParams {
+    pub fn from_settings(settings: &SimulationSettings) -> Self {
+        Self {
+            n: settings.active_count(),
+            min_mass: MIN_MASS,
+            _pad0: 0.0,
+            _pad1: 0.0,
+        }
+    }
+}

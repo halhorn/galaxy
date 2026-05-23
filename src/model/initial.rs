@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use super::body::BodyArrays;
 use super::constants::{
-    ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_MASS_LIMIT_MAX,
+    ACTIVE_COUNT, ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_MASS_LIMIT_MAX,
     DISK_MASS_LIMIT_MIN, DISK_MASS_MAX, DISK_MASS_MIN, DISK_R_INNER, DISK_R_MAX, DISK_R_MIN,
     DISK_R_OUTER, MIN_MASS, N_STARS,
     N_STARS_MAX, N_STARS_MIN, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION, V_PERTURBATION_MAX,
@@ -40,7 +40,7 @@ impl Default for InitialConditions {
             disk_r_max: DISK_R_OUTER,
             disk_height: 0.5,
             initial_v_perturbation: V_PERTURBATION,
-            active_count: BODY_COUNT as u32,
+            active_count: ACTIVE_COUNT,
         }
     }
 }
@@ -82,17 +82,18 @@ pub fn generate_initial_state(
     physics: &PhysicsSettings,
     force: &ForceLaw,
 ) -> BodyArrays {
+    let ic = ic.clone().clamped();
     let mut rng = SimpleRng::new(ic.seed);
     let g = physics.g;
     let n_stars = ic.n_stars as usize;
     let active = ic.active_count as usize;
 
     let mut bodies = BodyArrays::with_capacity(ic.active_count);
-    let mut index = place_central_stars(ic, g, &mut bodies);
+    let mut index = place_central_stars(&ic, g, &mut bodies);
 
     let central_mass = ic.star_mass * n_stars as f32;
     let n_disk = active.saturating_sub(index);
-    let disk_r_min = effective_disk_r_min(ic, n_stars);
+    let disk_r_min = effective_disk_r_min(&ic, n_stars);
 
     struct DiskSeed {
         index: usize,
@@ -112,7 +113,7 @@ pub fn generate_initial_state(
 
         let position = [r * theta.cos(), height, r * theta.sin()];
         bodies.positions[index] = [position[0], position[1], position[2], 0.0];
-        bodies.masses[index] = sample_disk_mass(&mut rng, ic);
+        bodies.masses[index] = sample_disk_mass(&mut rng, &ic);
         disk_seeds.push(DiskSeed { index, r, theta });
         index += 1;
     }
@@ -205,7 +206,7 @@ fn effective_disk_r_min(ic: &InitialConditions, n_stars: usize) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::constants::BODY_COUNT;
+    use crate::model::constants::{ACTIVE_COUNT, ACTIVE_COUNT_MAX, BODY_COUNT};
     use crate::model::PhysicsSettings;
 
     #[test]
@@ -218,6 +219,36 @@ mod tests {
         let clamped = ic.clamped();
         assert_eq!(clamped.n_stars, 4);
         assert_eq!(clamped.active_count, 4);
+    }
+
+    #[test]
+    fn default_active_count_is_active_count_constant() {
+        assert_eq!(InitialConditions::default().active_count, ACTIVE_COUNT);
+    }
+
+    #[test]
+    fn clamped_caps_active_count_at_max() {
+        let ic = InitialConditions {
+            active_count: ACTIVE_COUNT_MAX + 1,
+            ..InitialConditions::default()
+        };
+        assert_eq!(ic.clamped().active_count, ACTIVE_COUNT_MAX);
+    }
+
+    #[test]
+    fn generate_at_active_count_max_does_not_panic() {
+        let ic = InitialConditions {
+            n_stars: 1,
+            active_count: ACTIVE_COUNT_MAX,
+            ..InitialConditions::default()
+        };
+        let physics = PhysicsSettings::default();
+        let force = ForceLaw::newtonian(physics.g);
+        let bodies = generate_initial_state(&ic, &physics, &force);
+        assert_eq!(bodies.active_count, ACTIVE_COUNT_MAX);
+        assert_eq!(bodies.masses.len(), BODY_COUNT);
+        assert!(bodies.masses[ACTIVE_COUNT_MAX as usize - 1] > MIN_MASS);
+        assert_eq!(bodies.masses[0], ic.star_mass);
     }
 
     #[test]

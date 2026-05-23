@@ -18,7 +18,7 @@ pub fn setup_bodies_render(
     let material_handle = materials.add(BodiesMaterial {
         positions: gpu_buffers.positions.clone(),
         masses: gpu_buffers.masses.clone(),
-        merge_aux: gpu_buffers.merge_aux.clone(),
+        body_colors: gpu_buffers.body_colors.clone(),
     });
     commands.spawn((
         BodiesMesh,

@@ -23,6 +23,8 @@ pub struct SimulationGpuBuffers {
     pub merge_owner: Handle<ShaderStorageBuffer>,
     /// Merge snapshot: `[0..n)` pos.xyz + mass in w, `[n..2n)` velocity.
     pub merge_scratch: Handle<ShaderStorageBuffer>,
+    /// Per-body base RGB (mass gradient + merge flash); lighting applied in the vertex shader.
+    pub body_colors: Handle<ShaderStorageBuffer>,
 }
 
 impl SimulationGpuBuffers {
@@ -66,9 +68,15 @@ impl SimulationGpuBuffers {
             usage,
             asset_usage,
         );
-        let mut merge_aux_data = vec![u32::MAX; BODY_COUNT * 2];
-        merge_aux_data[BODY_COUNT..].fill(0);
-        let merge_aux = Self::init_storage_buffer(buffers, merge_aux_data, usage, asset_usage);
+        // merge_aux layout is `[0..n) bucket_next, [n..2n) merge_flash` (n = active_count).
+        // Zero-init so the colors pass does not treat stale slots as merge flash before the
+        // first merge prepare run (flash region moves with n, so do not zero only [BODY_COUNT..)).
+        let merge_aux = Self::init_storage_buffer(
+            buffers,
+            vec![0u32; BODY_COUNT * 2],
+            usage,
+            asset_usage,
+        );
         let merge_owner = Self::init_storage_buffer(
             buffers,
             vec![BODY_COUNT as u32; BODY_COUNT],
@@ -78,6 +86,12 @@ impl SimulationGpuBuffers {
         let merge_scratch = Self::init_storage_buffer(
             buffers,
             vec![Vec4::ZERO; BODY_COUNT * 2],
+            usage,
+            asset_usage,
+        );
+        let body_colors = Self::init_storage_buffer(
+            buffers,
+            vec![Vec4::ZERO; BODY_COUNT],
             usage,
             asset_usage,
         );
@@ -92,6 +106,7 @@ impl SimulationGpuBuffers {
             merge_aux,
             merge_owner,
             merge_scratch,
+            body_colors,
         }
     }
 }

@@ -43,6 +43,7 @@ impl render_graph::Node for SimulationComputeNode {
             pipelines.merge_build_grid,
             pipelines.merge_find_owner,
             pipelines.merge_apply,
+            pipelines.colors,
         ] {
             match cache.get_compute_pipeline_state(id) {
                 CachedPipelineState::Ok(_) => {}
@@ -66,10 +67,6 @@ impl render_graph::Node for SimulationComputeNode {
         if !self.ready {
             return Ok(());
         }
-        let playback = world.resource::<PlaybackState>();
-        if !playback.is_running() {
-            return Ok(());
-        }
         let Some(bind_groups) = world.get_resource::<SimulationComputeBindGroups>() else {
             return Ok(());
         };
@@ -78,48 +75,57 @@ impl render_graph::Node for SimulationComputeNode {
         let cache = world.resource::<PipelineCache>();
         let workgroups = dispatch_workgroups();
 
-        let gravity = cache.get_compute_pipeline(pipelines.gravity).unwrap();
-        let position_step = cache.get_compute_pipeline(pipelines.position_step).unwrap();
-        let velocity_step = cache.get_compute_pipeline(pipelines.velocity_step).unwrap();
-
         let mut pass = render_context
             .command_encoder()
             .begin_compute_pass(&ComputePassDescriptor::default());
 
-        pass.set_bind_group(0, &bind_groups.integrate, &[]);
-        pass.set_pipeline(position_step);
-        pass.dispatch_workgroups(workgroups, 1, 1);
+        let playback = world.resource::<PlaybackState>();
+        if playback.is_running() {
+            let gravity = cache.get_compute_pipeline(pipelines.gravity).unwrap();
+            let position_step = cache.get_compute_pipeline(pipelines.position_step).unwrap();
+            let velocity_step = cache.get_compute_pipeline(pipelines.velocity_step).unwrap();
 
-        pass.set_bind_group(0, &bind_groups.gravity, &[]);
-        pass.set_pipeline(gravity);
-        pass.dispatch_workgroups(workgroups, 1, 1);
+            pass.set_bind_group(0, &bind_groups.integrate, &[]);
+            pass.set_pipeline(position_step);
+            pass.dispatch_workgroups(workgroups, 1, 1);
 
-        pass.set_bind_group(0, &bind_groups.integrate, &[]);
-        pass.set_pipeline(velocity_step);
-        pass.dispatch_workgroups(workgroups, 1, 1);
+            pass.set_bind_group(0, &bind_groups.gravity, &[]);
+            pass.set_pipeline(gravity);
+            pass.dispatch_workgroups(workgroups, 1, 1);
 
-        let bucket_workgroups = (MERGE_BUCKET_COUNT as u32).div_ceil(256);
-        let merge_prepare = cache.get_compute_pipeline(pipelines.merge_prepare).unwrap();
-        let merge_clear_buckets = cache
-            .get_compute_pipeline(pipelines.merge_clear_buckets)
-            .unwrap();
-        let merge_init_owner = cache.get_compute_pipeline(pipelines.merge_init_owner).unwrap();
-        let merge_build_grid = cache.get_compute_pipeline(pipelines.merge_build_grid).unwrap();
-        let merge_find_owner = cache.get_compute_pipeline(pipelines.merge_find_owner).unwrap();
-        let merge_apply = cache.get_compute_pipeline(pipelines.merge_apply).unwrap();
+            pass.set_bind_group(0, &bind_groups.integrate, &[]);
+            pass.set_pipeline(velocity_step);
+            pass.dispatch_workgroups(workgroups, 1, 1);
 
-        pass.set_bind_group(0, &bind_groups.merge, &[]);
-        pass.set_pipeline(merge_prepare);
-        pass.dispatch_workgroups(workgroups, 1, 1);
-        pass.set_pipeline(merge_clear_buckets);
-        pass.dispatch_workgroups(bucket_workgroups, 1, 1);
-        pass.set_pipeline(merge_init_owner);
-        pass.dispatch_workgroups(workgroups, 1, 1);
-        pass.set_pipeline(merge_build_grid);
-        pass.dispatch_workgroups(workgroups, 1, 1);
-        pass.set_pipeline(merge_find_owner);
-        pass.dispatch_workgroups(workgroups, 1, 1);
-        pass.set_pipeline(merge_apply);
+            let bucket_workgroups = (MERGE_BUCKET_COUNT as u32).div_ceil(256);
+            let merge_prepare = cache.get_compute_pipeline(pipelines.merge_prepare).unwrap();
+            let merge_clear_buckets = cache
+                .get_compute_pipeline(pipelines.merge_clear_buckets)
+                .unwrap();
+            let merge_init_owner = cache.get_compute_pipeline(pipelines.merge_init_owner).unwrap();
+            let merge_build_grid = cache.get_compute_pipeline(pipelines.merge_build_grid).unwrap();
+            let merge_find_owner = cache.get_compute_pipeline(pipelines.merge_find_owner).unwrap();
+            let merge_apply = cache.get_compute_pipeline(pipelines.merge_apply).unwrap();
+
+            pass.set_bind_group(0, &bind_groups.merge, &[]);
+            pass.set_pipeline(merge_prepare);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+            pass.set_pipeline(merge_clear_buckets);
+            pass.dispatch_workgroups(bucket_workgroups, 1, 1);
+            pass.set_pipeline(merge_init_owner);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+            pass.set_pipeline(merge_build_grid);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+            pass.set_pipeline(merge_find_owner);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+            pass.set_pipeline(merge_apply);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+        }
+
+        // O(n) color pass — runs while paused so body colors stay in sync with mass/flash state.
+        let colors = cache.get_compute_pipeline(pipelines.colors).unwrap();
+        pass.set_bind_group(0, &bind_groups.colors, &[]);
+        pass.set_pipeline(colors);
         pass.dispatch_workgroups(workgroups, 1, 1);
 
         Ok(())

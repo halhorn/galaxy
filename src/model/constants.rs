@@ -1,8 +1,5 @@
 use std::f32::consts::PI;
 
-/// Fixed number of simulated bodies (not ECS entities).
-pub const BODY_COUNT: usize = 10_000;
-
 pub const WORKGROUP_SIZE: u32 = 256;
 
 /// Bodies with `mass <= MIN_MASS` are inactive (merged away).
@@ -34,8 +31,14 @@ pub const MERGE_MAX_RADIUS: f32 = 2.0;
 pub const N_STARS_MIN: u32 = 0;
 pub const N_STARS: u32 = 1;
 pub const N_STARS_MAX: u32 = 4;
+
 pub const ACTIVE_COUNT_MIN: u32 = 2;
-pub const ACTIVE_COUNT_MAX: u32 = BODY_COUNT as u32;
+/// Default active body count at startup.
+pub const ACTIVE_COUNT: u32 = 10_000;
+/// Maximum active bodies (UI slider upper bound).
+pub const ACTIVE_COUNT_MAX: u32 = 20_000;
+/// GPU/CPU buffer length; equals `ACTIVE_COUNT_MAX` (one slot per possible body).
+pub const BODY_COUNT: usize = ACTIVE_COUNT_MAX as usize;
 
 pub const STAR_MASS_MIN: f32 = 0.1;
 pub const STAR_MASS: f32 = 100.0;
