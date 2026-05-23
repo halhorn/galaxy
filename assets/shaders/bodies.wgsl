@@ -4,6 +4,15 @@
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var<storage, read> masses: array<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var<storage, read> body_colors: array<vec4<f32>>;
 
+struct StarsRenderParams {
+    star_visual_scale: f32,
+    min_star_visual_scale: f32,
+    sun_radius_au: f32,
+    _pad: f32,
+}
+
+@group(#{MATERIAL_BIND_GROUP}) @binding(3) var<uniform> params: StarsRenderParams;
+
 struct Vertex {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
@@ -15,8 +24,8 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
 }
 
-fn radius_from_mass(mass: f32) -> f32 {
-    return 0.5 * pow(mass, 1.0 / 3.0);
+fn physical_radius_from_mass(mass: f32) -> f32 {
+    return params.sun_radius_au * pow(mass, 1.0 / 3.0);
 }
 
 @vertex
@@ -30,7 +39,10 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         return out;
     }
     let center = positions[body_id].xyz;
-    let radius = radius_from_mass(mass);
+    let radius = max(
+        physical_radius_from_mass(mass) * params.star_visual_scale,
+        params.min_star_visual_scale,
+    );
     let world_pos = center + vertex.position * (radius * 2.0);
     let n = normalize(vertex.normal);
     let light = normalize(vec3(0.15, 1.0, 0.25));

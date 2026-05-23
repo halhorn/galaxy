@@ -6,7 +6,7 @@ use crate::model::constants::{
 };
 use crate::model::force::{ForceLaw, ForceTerm, MAX_FORCE_TERMS};
 use crate::model::PhysicsSettings;
-use crate::simulation::{SimulationConfig, SimulationSettings};
+use crate::simulation::SimulationSettings;
 
 const SECTION_HEADING_SIZE: f32 = 13.0;
 const SECTION_SPACING: f32 = 12.0;
@@ -221,18 +221,7 @@ fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
     );
 }
 
-pub fn physics_panel(
-    ui: &mut egui::Ui,
-    settings: &mut SimulationSettings,
-    config: &mut SimulationConfig,
-) {
-    ui.add(
-        egui::Slider::new(&mut config.time_scale, 0.25..=4.0)
-            .logarithmic(true)
-            .text("Time scale"),
-    );
-
-    ui.add_space(SECTION_SPACING);
+pub fn physics_panel(ui: &mut egui::Ui, settings: &mut SimulationSettings) {
     physics_slider_group(ui, &mut settings.physics);
     settings.physics = settings.physics.clamped();
 

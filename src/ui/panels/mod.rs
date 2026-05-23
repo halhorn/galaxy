@@ -1,3 +1,4 @@
+mod display;
 mod initial;
 mod physics;
 
@@ -9,6 +10,7 @@ use crate::simulation::{
     SimViewportSystems, DESKTOP_PANEL_WIDTH, MOBILE_BREAKPOINT_PX, MOBILE_PANEL_HEIGHT,
 };
 
+use display::display_panel;
 use initial::initial_panel;
 use physics::physics_panel;
 
@@ -32,18 +34,20 @@ enum ControlTab {
     #[default]
     Initial,
     Physics,
+    Display,
 }
 
 impl ControlTab {
     fn label(self, compact: bool) -> &'static str {
         match self {
             Self::Physics => "Physics",
+            Self::Display => "Display",
             Self::Initial if compact => "Initial",
             Self::Initial => "Initial Conditions",
         }
     }
 
-    const ALL: [Self; 2] = [Self::Initial, Self::Physics];
+    const ALL: [Self; 3] = [Self::Initial, Self::Physics, Self::Display];
 }
 
 fn update_fps_display(time: Res<Time>, mut fps: ResMut<FpsDisplay>, mut smoothed: Local<f32>) {
@@ -136,8 +140,12 @@ fn active_tab_panel(
     draft: &mut ControlPanelDraft,
 ) {
     match tab {
-        ControlTab::Physics => physics_panel(ui, settings, config),
+        ControlTab::Physics => physics_panel(ui, settings),
         ControlTab::Initial => initial_panel(ui, draft),
+        ControlTab::Display => {
+            display_panel(ui, config);
+            *config = config.clone().clamped();
+        }
     }
 }
 

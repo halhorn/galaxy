@@ -67,8 +67,10 @@ fn snap_vel(i: u32) -> vec3<f32> {
     return scratch[params.n + i].xyz;
 }
 
-fn radius_from_mass(mass: f32) -> f32 {
-    return 0.5 * pow(mass, 1.0 / 3.0);
+const SUN_RADIUS_AU: f32 = 696000.0 / 149597870.7;
+
+fn physical_radius_from_mass(mass: f32) -> f32 {
+    return SUN_RADIUS_AU * pow(mass, 1.0 / 3.0);
 }
 
 fn hash_cell(cx: i32, cy: i32, cz: i32) -> u32 {
@@ -96,8 +98,8 @@ fn mergeable(i: u32, j: u32) -> bool {
         return false;
     }
     let dist = length(snap_pos(i) - snap_pos(j));
-    let ri = radius_from_mass(snap_mass(i));
-    let rj = radius_from_mass(snap_mass(j));
+    let ri = physical_radius_from_mass(snap_mass(i));
+    let rj = physical_radius_from_mass(snap_mass(j));
     let touch = (ri + rj) * params.merge_radius_factor;
     return dist < touch;
 }

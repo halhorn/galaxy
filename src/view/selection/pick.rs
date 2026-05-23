@@ -6,7 +6,9 @@ use bevy::{
 };
 use bevy_panorbit_camera::EguiWantsFocus;
 
+use crate::model::body::visual_radius;
 use crate::model::constants::{BODY_COUNT, MIN_MASS};
+use crate::simulation::SimulationConfig;
 use crate::view::SimulationCamera;
 use crate::view::selection::snapshot::SimulationCpuSnapshot;
 
@@ -28,15 +30,13 @@ pub struct ClickPickerState {
 /// Max cursor movement (logical px) to count as a click rather than orbit drag.
 const CLICK_DRAG_THRESHOLD_PX: f32 = 16.0;
 
-/// Minimum world-space pick/test radius so small disk bodies remain clickable.
-const MIN_PICK_RADIUS: f32 = 0.35;
-
 #[derive(SystemParam)]
 pub struct ClickPickInput<'w, 's> {
     mouse: Res<'w, ButtonInput<MouseButton>>,
     touches: Res<'w, Touches>,
     windows: Query<'w, 's, &'static Window>,
     egui_wants_focus: Res<'w, EguiWantsFocus>,
+    config: Res<'w, SimulationConfig>,
     picker: ResMut<'w, ClickPickerState>,
     selected: ResMut<'w, SelectedBody>,
     snapshot: Res<'w, SimulationCpuSnapshot>,
@@ -89,6 +89,8 @@ pub fn click_pick_body(mut input: ClickPickInput<'_, '_>) {
         cursor,
         &input.snapshot,
         &input.camera,
+        input.config.star_visual_scale,
+        input.config.min_star_visual_scale,
         &mut input.selected,
     );
 }
@@ -97,6 +99,8 @@ fn pick_body_at_cursor(
     cursor: Vec2,
     snapshot: &SimulationCpuSnapshot,
     camera: &Query<(&Camera, &GlobalTransform), With<SimulationCamera>>,
+    star_visual_scale: f32,
+    min_star_visual_scale: f32,
     selected: &mut SelectedBody,
 ) {
     if !snapshot.ready || snapshot.masses.len() < BODY_COUNT || snapshot.positions.len() < BODY_COUNT {
@@ -117,7 +121,7 @@ fn pick_body_at_cursor(
             continue;
         }
         let center = snapshot.positions[i];
-        let radius = visual_radius(mass).max(MIN_PICK_RADIUS);
+        let radius = visual_radius(mass, star_visual_scale, min_star_visual_scale);
         let Some(t) = ray_sphere_hit(ray.origin, *ray.direction, center, radius) else {
             continue;
         };
@@ -127,11 +131,6 @@ fn pick_body_at_cursor(
     }
 
     selected.0 = best.map(|(i, _)| i);
-}
-
-/// Matches `bodies.wgsl`: `radius = 0.5 * mass^(1/3)`, mesh scale `* 2`.
-fn visual_radius(mass: f32) -> f32 {
-    0.5 * mass.powf(1.0 / 3.0) * 2.0
 }
 
 fn ray_sphere_hit(origin: Vec3, dir: Vec3, center: Vec3, radius: f32) -> Option<f32> {

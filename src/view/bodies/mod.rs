@@ -11,6 +11,7 @@ pub struct BodiesRenderPlugin;
 
 impl Plugin for BodiesRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(MaterialPlugin::<material::BodiesMaterial>::default());
+        app.add_plugins(MaterialPlugin::<material::BodiesMaterial>::default())
+            .add_systems(Update, material::sync_star_render_params);
     }
 }

@@ -24,6 +24,14 @@ pub fn encode_applied_state(state: &AppliedUrlState) -> Result<String, String> {
         "ts".into(),
         SubLevel::encode_from_f32_vec(&[state.time_scale]),
     ));
+    pairs.push((
+        "svs".into(),
+        SubLevel::encode_from_f32_vec(&[state.star_visual_scale]),
+    ));
+    pairs.push((
+        "mss".into(),
+        SubLevel::encode_from_f32_vec(&[state.min_star_visual_scale]),
+    ));
     pairs.push(("seed".into(), SubLevel::new(state.initial.seed.to_string())));
     pairs.push((
         "nstars".into(),
@@ -88,6 +96,8 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
     let mut physics = AppliedUrlState::default().physics;
     let mut initial = AppliedUrlState::default().initial;
     let mut time_scale = None;
+    let mut star_visual_scale = None;
+    let mut min_star_visual_scale = None;
     let mut legacy_g = None;
     let mut terms = Vec::<ForceTerm>::new();
 
@@ -98,6 +108,8 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
             "soft" => physics.softening = decode_f32(val)?,
             "merge" => physics.merge_radius_factor = decode_f32(val)?,
             "ts" => time_scale = Some(decode_f32(val)?),
+            "svs" | "bvs" => star_visual_scale = Some(decode_f32(val)?),
+            "mss" => min_star_visual_scale = Some(decode_f32(val)?),
             "seed" => initial.seed = decode_u64(val)?,
             "nstars" => initial.n_stars = val.decode_to_u32()?,
             "stmass" => initial.star_mass = decode_f32(val)?,
@@ -124,11 +136,14 @@ pub fn decode_applied_state(query: &str) -> Result<AppliedUrlState, String> {
         force.set_gravity_coefficient(g);
     }
 
+    let default_config = SimulationConfig::default();
     let state = AppliedUrlState {
         physics,
         initial,
         force,
-        time_scale: time_scale.unwrap_or(SimulationConfig::default().time_scale),
+        time_scale: time_scale.unwrap_or(default_config.time_scale),
+        star_visual_scale: star_visual_scale.unwrap_or(default_config.star_visual_scale),
+        min_star_visual_scale: min_star_visual_scale.unwrap_or(default_config.min_star_visual_scale),
     }
     .clamped();
 
@@ -142,8 +157,11 @@ fn validate_applied_state(state: &AppliedUrlState) -> Result<(), String> {
     {
         return Err("non-finite physics parameter".into());
     }
-    if !state.time_scale.is_finite() {
-        return Err("non-finite time scale".into());
+    if !state.time_scale.is_finite()
+        || !state.star_visual_scale.is_finite()
+        || !state.min_star_visual_scale.is_finite()
+    {
+        return Err("non-finite display parameter".into());
     }
     if !state.force.is_valid() {
         return Err("invalid force law".into());

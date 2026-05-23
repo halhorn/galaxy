@@ -5,7 +5,7 @@ use bevy::{
 
 use crate::simulation::SimulationGpuBuffers;
 
-use super::material::BodiesMaterial;
+use super::material::{BodiesMaterial, BodiesMaterialHandle};
 use super::mesh::{build_bodies_mesh, BodiesMesh};
 
 pub fn setup_bodies_render(
@@ -19,11 +19,13 @@ pub fn setup_bodies_render(
         positions: gpu_buffers.positions.clone(),
         masses: gpu_buffers.masses.clone(),
         body_colors: gpu_buffers.body_colors.clone(),
+        params: Default::default(),
     });
     commands.spawn((
         BodiesMesh,
         Mesh3d(mesh_handle),
-        MeshMaterial3d(material_handle),
+        MeshMaterial3d(material_handle.clone()),
+        BodiesMaterialHandle(material_handle),
         Transform::IDENTITY,
         Visibility::default(),
         // Mesh AABB is only the unit sphere at origin; world positions come from GPU storage.

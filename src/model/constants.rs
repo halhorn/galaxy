@@ -17,14 +17,28 @@ pub const SOFTENING_MAX: f32 = 0.1;
 
 /// Fraction of combined radii at which bodies merge (legacy `merger.rs`).
 pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.00;
-pub const MERGE_RADIUS_FACTOR: f32 = 0.1;
-pub const MERGE_RADIUS_FACTOR_MAX: f32 = 1.0;
+pub const MERGE_RADIUS_FACTOR: f32 = 1.0;
+pub const MERGE_RADIUS_FACTOR_MAX: f32 = 10.0;
 
 /// Spatial hash buckets for the merge pass.
 pub const MERGE_BUCKET_COUNT: usize = 16_384;
 
-/// Conservative max body radius (AU) for merge grid; large enough for merged stars.
-pub const MERGE_MAX_RADIUS: f32 = 2.0;
+/// Conservative max body radius (AU) for merge grid; covers `STAR_MASS_MAX` at `SUN_RADIUS_AU`.
+pub const MERGE_MAX_RADIUS: f32 = 0.25;
+
+/// Solar radius in AU (696,000 km / 1 AU).
+pub const SUN_RADIUS_AU: f32 = 696_000.0 / 149_597_870.7;
+
+/// Rendering multiplier for star spheres (physics radii stay at `SUN_RADIUS_AU`).
+pub const STAR_VISUAL_SCALE_MIN: f32 = 1.0;
+/// Default ≈ old `0.5 * M^(1/3)` appearance for a 1 M☉ star.
+pub const STAR_VISUAL_SCALE: f32 = 100.0;
+pub const STAR_VISUAL_SCALE_MAX: f32 = 500.0;
+
+/// Minimum rendered star radius in AU (slider lower bound).
+pub const MIN_STAR_VISUAL_SCALE_MIN: f32 = 0.001;
+pub const MIN_STAR_VISUAL_SCALE: f32 = 0.02;
+pub const MIN_STAR_VISUAL_SCALE_MAX: f32 = 0.5;
 
 /// Initial-condition UI / validation ranges (Phase 3).
 /// RNG seed: up to 8 decimal digits.
@@ -49,16 +63,16 @@ pub const STAR_MASS: f32 = 100.0;
 pub const STAR_MASS_MAX: f32 = 100000.0;
 
 /// Disk star mass uniform range [min, max] in M☉ (slider limits).
-pub const DISK_MASS_LIMIT_MIN: f32 = 0.001;
+pub const DISK_MASS_LIMIT_MIN: f32 = 0.000001;
 pub const DISK_MASS_LIMIT_MAX: f32 = 1000.0;
 /// Default disk mass uniform range.
 pub const DISK_MASS_MIN: f32 = 0.002;
 pub const DISK_MASS_MAX: f32 = 0.02;
 
-pub const DISK_R_MIN: f32 = 1.0;
+pub const DISK_R_MIN: f32 = 0.001;
 pub const DISK_R_MAX: f32 = 1000.0;
 /// Default disk inner / outer radius (AU).
-pub const DISK_R_INNER: f32 = 1.0;
+pub const DISK_R_INNER: f32 = 0.01;
 pub const DISK_R_OUTER: f32 = 60.0;
 pub const DISK_HEIGHT_MAX: f32 = 5.0;
 pub const V_PERTURBATION: f32 = 0.5;
