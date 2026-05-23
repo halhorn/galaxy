@@ -5,7 +5,7 @@ use super::constants::{
     ACTIVE_COUNT_MAX, ACTIVE_COUNT_MIN, BODY_COUNT, DISK_HEIGHT_MAX, DISK_MASS_LIMIT_MAX,
     DISK_MASS_LIMIT_MIN, DISK_MASS_MAX, DISK_MASS_MIN, DISK_R_INNER, DISK_R_MAX, DISK_R_MIN,
     DISK_R_OUTER, MIN_MASS, N_STARS,
-    N_STARS_MAX, N_STARS_MIN, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION_MAX,
+    N_STARS_MAX, N_STARS_MIN, STAR_MASS, STAR_MASS_MAX, STAR_MASS_MIN, V_PERTURBATION, V_PERTURBATION_MAX,
 };
 use super::force::ForceLaw;
 use super::physics::PhysicsSettings;
@@ -38,8 +38,8 @@ impl Default for InitialConditions {
             disk_mass_max: DISK_MASS_MAX,
             disk_r_min: DISK_R_INNER,
             disk_r_max: DISK_R_OUTER,
-            disk_height: 0.5,
-            initial_v_perturbation: 0.02,
+            disk_height: DISK_HEIGHT,
+            initial_v_perturbation: V_PERTURBATION,
             active_count: BODY_COUNT as u32,
         }
     }

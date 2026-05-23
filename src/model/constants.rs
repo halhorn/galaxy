@@ -54,7 +54,8 @@ pub const DISK_R_MAX: f32 = 1000.0;
 pub const DISK_R_INNER: f32 = 1.0;
 pub const DISK_R_OUTER: f32 = 60.0;
 pub const DISK_HEIGHT_MAX: f32 = 5.0;
-pub const V_PERTURBATION_MAX: f32 = 0.5;
+pub const V_PERTURBATION: f32 = 0.5;
+pub const V_PERTURBATION_MAX: f32 = 2.0;
 
 /// Force-law polynomial term limits (Phase 4).
 pub const FORCE_EXPONENT_MIN: i32 = -5;
