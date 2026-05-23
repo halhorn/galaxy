@@ -1,9 +1,9 @@
 // Parallel merge (≤8 storage buffers for WebGPU). Scratch: [0..n) pos+mass, [n..2n) vel.
 // merge_aux: [0..n) bucket_next, [n..2n) merge_flash.
-// merge_flash packs: bit0 = absorbed this pass, bits1+ = frames remaining (0..10).
+// merge_flash packs: bit0 = absorbed this pass, bits1+ = frames remaining (0..MERGE_FLASH_FRAMES).
 
 const INVALID: u32 = 0xFFFFFFFFu;
-const MERGE_FLASH_FRAMES: u32 = 10u;
+const MERGE_FLASH_FRAMES: u32 = #{MERGE_FLASH_FRAMES}u;
 const ABSORBED_THIS_PASS: u32 = 1u;
 
 struct Params {

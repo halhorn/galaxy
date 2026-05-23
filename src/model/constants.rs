@@ -20,6 +20,9 @@ pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.01;
 pub const MERGE_RADIUS_FACTOR: f32 = 1.0;
 pub const MERGE_RADIUS_FACTOR_MAX: f32 = 100.0;
 
+/// Frames to fade merge flash back to mass-based body color.
+pub const MERGE_FLASH_FRAMES: u32 = 60;
+
 /// Spatial hash buckets for the merge pass.
 pub const MERGE_BUCKET_COUNT: usize = 16_384;
 

@@ -1,10 +1,16 @@
 use bevy::{asset::uuid_handle, prelude::*};
 
+use crate::model::constants::MERGE_FLASH_FRAMES;
+
 const GRAVITY_WGSL: &str = include_str!("../../assets/shaders/gravity.wgsl");
 const INTEGRATE_WGSL: &str = include_str!("../../assets/shaders/integrate.wgsl");
 const BODIES_WGSL: &str = include_str!("../../assets/shaders/bodies.wgsl");
 const COLORS_WGSL: &str = include_str!("../../assets/shaders/colors.wgsl");
 const MERGE_WGSL: &str = include_str!("../../assets/shaders/merge.wgsl");
+
+fn inject_shader_constants(source: &str) -> String {
+    source.replace("#{MERGE_FLASH_FRAMES}", &MERGE_FLASH_FRAMES.to_string())
+}
 
 pub const GRAVITY_SHADER: Handle<Shader> = uuid_handle!("a8c31e42-1f0b-4d2a-9e3c-7b5a6d8e9f01");
 pub const INTEGRATE_SHADER: Handle<Shader> = uuid_handle!("b9d42f53-2a1c-5e3b-0f4d-8c6b7e0f1a02");
@@ -28,10 +34,16 @@ pub fn register_simulation_shaders(mut shaders: ResMut<Assets<Shader>>) {
     );
     let _ = shaders.insert(
         COLORS_SHADER.id(),
-        Shader::from_wgsl(COLORS_WGSL, "shaders/colors.wgsl"),
+        Shader::from_wgsl(
+            inject_shader_constants(COLORS_WGSL),
+            "shaders/colors.wgsl",
+        ),
     );
     let _ = shaders.insert(
         MERGE_SHADER.id(),
-        Shader::from_wgsl(MERGE_WGSL, "shaders/merge.wgsl"),
+        Shader::from_wgsl(
+            inject_shader_constants(MERGE_WGSL),
+            "shaders/merge.wgsl",
+        ),
     );
 }

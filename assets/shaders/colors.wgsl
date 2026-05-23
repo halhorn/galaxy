@@ -13,7 +13,7 @@ struct Params {
 // Matches bodies.wgsl / init.rs mass range.
 const MASS_LOG_MIN: f32 = -1.7;
 const MASS_LOG_MAX: f32 = 1.0;
-const MERGE_FLASH_FRAMES: f32 = 10.0;
+const MERGE_FLASH_FRAMES: f32 = #{MERGE_FLASH_FRAMES}.0;
 
 fn mass_to_t(mass: f32) -> f32 {
     let log_m = log(max(mass, 1e-8)) / log(10.0);
