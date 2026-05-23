@@ -20,7 +20,7 @@ pub const SOFTENING_MAX: f32 = 0.1;
 
 /// Fraction of combined radii at which bodies merge (legacy `merger.rs`).
 pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.00;
-pub const MERGE_RADIUS_FACTOR: f32 = 0.00;
+pub const MERGE_RADIUS_FACTOR: f32 = 0.1;
 pub const MERGE_RADIUS_FACTOR_MAX: f32 = 1.0;
 
 /// Spatial hash buckets for the merge pass.
@@ -32,7 +32,7 @@ pub const MERGE_MAX_RADIUS: f32 = 2.0;
 /// Initial-condition UI / validation ranges (Phase 3).
 /// Central star count (0 = disk-only, no bulge stars).
 pub const N_STARS_MIN: u32 = 0;
-pub const N_STARS: u32 = 0;
+pub const N_STARS: u32 = 1;
 pub const N_STARS_MAX: u32 = 4;
 pub const ACTIVE_COUNT_MIN: u32 = 2;
 pub const ACTIVE_COUNT_MAX: u32 = BODY_COUNT as u32;
@@ -45,8 +45,8 @@ pub const STAR_MASS_MAX: f32 = 100000.0;
 pub const DISK_MASS_LIMIT_MIN: f32 = 0.001;
 pub const DISK_MASS_LIMIT_MAX: f32 = 1000.0;
 /// Default disk mass uniform range.
-pub const DISK_MASS_MIN: f32 = 0.02;
-pub const DISK_MASS_MAX: f32 = 0.37;
+pub const DISK_MASS_MIN: f32 = 0.002;
+pub const DISK_MASS_MAX: f32 = 0.02;
 
 pub const DISK_R_MIN: f32 = 1.0;
 pub const DISK_R_MAX: f32 = 1000.0;
