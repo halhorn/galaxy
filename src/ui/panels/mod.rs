@@ -40,13 +40,11 @@ enum ControlTab {
 }
 
 impl ControlTab {
-    fn label(self, compact: bool) -> &'static str {
+    fn label(self) -> &'static str {
         match self {
-            Self::Physics => "Physics",
-            Self::Display if compact => "Display",
-            Self::Display => "Display & Other",
-            Self::Initial if compact => "Initial",
             Self::Initial => "Initial Conditions",
+            Self::Physics => "Physics",
+            Self::Display => "Display & Other",
         }
     }
 
@@ -119,7 +117,7 @@ fn tab_bar(ui: &mut egui::Ui, tab: &mut ControlTab, compact: bool) {
         ui.spacing_mut().item_spacing.x = if compact { 6.0 } else { 8.0 };
         for candidate in ControlTab::ALL {
             if ui
-                .selectable_label(*tab == candidate, candidate.label(compact))
+                .selectable_label(*tab == candidate, candidate.label())
                 .clicked()
             {
                 *tab = candidate;
