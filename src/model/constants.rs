@@ -17,7 +17,7 @@ pub const SOFTENING_MAX: f32 = 0.1;
 
 /// Fraction of combined radii at which bodies merge (legacy `merger.rs`).
 pub const MERGE_RADIUS_FACTOR_MIN: f32 = 0.01;
-pub const MERGE_RADIUS_FACTOR: f32 = 10.0;
+pub const MERGE_RADIUS_FACTOR: f32 = 20.0;
 pub const MERGE_RADIUS_FACTOR_MAX: f32 = 100.0;
 
 /// Frames to fade merge flash back to mass-based body color.
