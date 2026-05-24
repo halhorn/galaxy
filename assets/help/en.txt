@@ -1,0 +1,85 @@
+@seed
+Random seed
+RNG seed for initial star positions.
+Same seed gives the same layout.
+Applied when you restart.
+
+@central_stars_count
+Central star count
+Number of massive stars at the galactic center.
+Must not exceed total disk stars.
+
+@central_stars_mass
+Central star mass
+Mass of each central star in solar masses (M☉).
+Heavier stars dominate gravity near the core.
+
+@disk_stars
+Disk stars
+Total number of stars, including central stars.
+More stars increase compute cost.
+
+@disk_mass_min
+Min disk mass
+Lower bound for disk star masses (M☉).
+Drawn randomly between min and max.
+
+@disk_mass_max
+Max disk mass
+Upper bound for disk star masses (M☉).
+Must be greater than min mass.
+
+@disk_inner_radius
+Inner radius
+Inner edge of the star disk in AU.
+Stars spawn between inner and outer radius.
+
+@disk_outer_radius
+Outer radius
+Outer edge of the star disk in AU.
+Must be greater than inner radius.
+
+@disk_elevation
+Disk tilt
+Inclination of the disk from the orbital plane (°).
+Zero is a flat disk; higher values tilt it in 3D.
+
+@velocity_perturbation
+Velocity noise
+Random kick added to orbital speeds at startup.
+Higher values make less circular orbits.
+
+@softening
+Softening
+Minimum interaction distance in AU.
+Prevents force blow-ups when stars get very close.
+
+@merge_radius_factor
+Merge factor
+Stars closer than this × combined radius merge into one.
+Higher values merge more aggressively.
+
+@force_presets
+Force presets
+Pre-built force laws: Newtonian gravity, gravity + repulsion, etc.
+Select Custom to edit terms manually.
+
+@force_expression
+Force expression
+Edit individual terms of F = Σ sign · c · d^N.
+Add or remove terms; changes apply immediately.
+
+@time_scale
+Time scale
+Simulation speed multiplier.
+1.0 is normal; higher runs faster (keys 1–4 also set this).
+
+@star_visual_scale
+Star size
+Multiplier for rendered star sphere radius.
+Does not affect physics.
+
+@min_star_visual_scale
+Min star size
+Floor on displayed star size so faint stars stay visible.
+Useful when zoomed out.

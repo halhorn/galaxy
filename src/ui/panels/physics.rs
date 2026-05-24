@@ -10,6 +10,7 @@ use crate::model::{
 };
 use crate::simulation::SimulationSettings;
 use crate::ui::fonts::EQUATION_FONT;
+use crate::ui::help::{help_link, slider_row, HelpId, HelpPopupState};
 use crate::view::SimulationCpuSnapshot;
 
 const SECTION_HEADING_SIZE: f32 = 13.0;
@@ -151,33 +152,38 @@ fn force_law_section(
     force: &mut ForceLaw,
     physics: &PhysicsSettings,
     r_ref: f32,
+    help: &mut HelpPopupState,
 ) {
     section_heading(ui, "Force law");
     show_force_equation(ui, force);
 
     ui.add_space(SECTION_SPACING);
     ui.horizontal(|ui| {
-        ui.label("Presets:");
-        let current = ForcePreset::detect(force);
-        egui::ComboBox::from_id_salt("force_presets")
-            .width(ui.available_width())
-            .selected_text(current.map(|p| p.label()).unwrap_or("Custom"))
-            .show_ui(ui, |ui| {
-                for preset in ForcePreset::ALL {
-                    if ui
-                        .selectable_label(current == Some(preset), preset.label())
-                        .clicked()
-                    {
-                        *force = preset.apply(force.gravity_coefficient());
-                    }
-                }
-            });
+        ui.label("Presets");
+        help_link(ui, HelpId::ForcePresets, help);
     });
+    let current = ForcePreset::detect(force);
+    egui::ComboBox::from_id_salt("force_presets")
+        .width(ui.available_width())
+        .selected_text(current.map(|p| p.label()).unwrap_or("Custom"))
+        .show_ui(ui, |ui| {
+            for preset in ForcePreset::ALL {
+                if ui
+                    .selectable_label(current == Some(preset), preset.label())
+                    .clicked()
+                {
+                    *force = preset.apply(force.gravity_coefficient());
+                }
+            }
+        });
 
     egui::CollapsingHeader::new("Force expression")
         .default_open(true)
         .show(ui, |ui| {
-            section_heading(ui, "Terms");
+            ui.horizontal(|ui| {
+                ui.label("Terms");
+                help_link(ui, HelpId::ForceExpression, help);
+            });
 
             let term_count = force.term_count as usize;
             let mut remove_at = None;
@@ -236,20 +242,25 @@ fn show_force_warnings(ui: &mut egui::Ui, force: &ForceLaw, physics: &PhysicsSet
     }
 }
 
-fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
-    ui.add(
-        egui::Slider::new(&mut physics.softening, SOFTENING_MIN..=SOFTENING_MAX)
-            .logarithmic(true)
-            .text("Softening (AU)"),
+fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings, help: &mut HelpPopupState) {
+    slider_row(
+        ui,
+        help,
+        HelpId::Softening,
+        "Softening (AU)",
+        egui::Slider::new(&mut physics.softening, SOFTENING_MIN..=SOFTENING_MAX).logarithmic(true),
     );
 
-    ui.add(
+    slider_row(
+        ui,
+        help,
+        HelpId::MergeRadiusFactor,
+        "Merge radius factor",
         egui::Slider::new(
             &mut physics.merge_radius_factor,
             MERGE_RADIUS_FACTOR_MIN..=MERGE_RADIUS_FACTOR_MAX,
         )
-        .logarithmic(true)
-        .text("Merge radius factor"),
+        .logarithmic(true),
     );
 }
 
@@ -257,13 +268,14 @@ pub fn physics_panel(
     ui: &mut egui::Ui,
     settings: &mut SimulationSettings,
     snapshot: &SimulationCpuSnapshot,
+    help: &mut HelpPopupState,
 ) {
-    physics_slider_group(ui, &mut settings.physics);
+    physics_slider_group(ui, &mut settings.physics, help);
     settings.physics = settings.physics.clamped();
 
     ui.add_space(SECTION_SPACING);
     let r_ref = coefficient_reference_radius(snapshot, settings);
-    force_law_section(ui, &mut settings.force, &settings.physics, r_ref);
+    force_law_section(ui, &mut settings.force, &settings.physics, r_ref, help);
     settings.force = settings.force.clone().clamped();
 
     if !settings.force.is_valid() {

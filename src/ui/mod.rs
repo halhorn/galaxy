@@ -3,6 +3,8 @@
 mod apply;
 mod draft;
 mod fonts;
+mod help;
+mod icon_button;
 mod keyboard;
 mod panels;
 
@@ -14,6 +16,7 @@ use crate::simulation::SimViewportSystems;
 
 use apply::UiApplyPlugin;
 use fonts::setup_equation_font;
+use help::HelpPlugin;
 use keyboard::playback_shortcuts;
 use panels::ControlPanelsPlugin;
 
@@ -33,7 +36,7 @@ impl Plugin for ControlUiPlugin {
                 EguiPrimaryContextPass,
                 (SimViewportSystems::Layout, SimViewportSystems::CameraViewport).chain(),
             )
-            .add_plugins((ControlPanelsPlugin, UiApplyPlugin))
+            .add_plugins((HelpPlugin, ControlPanelsPlugin, UiApplyPlugin))
             .add_systems(PostStartup, setup_equation_font)
             .add_systems(Update, playback_shortcuts);
     }

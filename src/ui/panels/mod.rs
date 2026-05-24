@@ -17,11 +17,12 @@ use physics::physics_panel;
 
 use crate::ui::apply::UiPendingActions;
 use crate::ui::draft::ControlPanelDraft;
+use crate::ui::help::{show_help_overlay, HelpCatalog, HelpPopupState};
+use crate::ui::icon_button::{icon_button, HEADER_ICON_BUTTON_SIZE};
 
 const PANEL_TOP_PADDING: f32 = 10.0 * 2.0 / 3.0;
 const TITLE_TAB_SPACING: f32 = 12.0;
 const MOBILE_BOTTOM_PADDING: f32 = 16.0;
-const ICON_BUTTON_SIZE: egui::Vec2 = egui::Vec2::new(28.0, 28.0);
 const RESTART_PLAY_GAP: f32 = 6.0;
 const STATS_BUTTON_GAP: f32 = 6.0;
 
@@ -67,20 +68,13 @@ fn is_mobile_layout(windows: &Query<&Window>) -> bool {
         .is_ok_and(|window| window.width() < MOBILE_BREAKPOINT_PX)
 }
 
-fn icon_button(ui: &mut egui::Ui, icon: &str, tooltip: &str) -> egui::Response {
-    ui.add(
-        egui::Button::new(egui::RichText::new(icon).size(16.0)).min_size(ICON_BUTTON_SIZE),
-    )
-    .on_hover_text(tooltip)
-}
-
 fn playback_controls(
     ui: &mut egui::Ui,
     playback: &mut PlaybackState,
     pending: &mut UiPendingActions,
 ) {
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        if icon_button(ui, "↻", "Restart").clicked() {
+        if icon_button(ui, "↻", "Restart", HEADER_ICON_BUTTON_SIZE).clicked() {
             pending.restart = true;
         }
         ui.add_space(RESTART_PLAY_GAP);
@@ -90,7 +84,7 @@ fn playback_controls(
         } else {
             ("▶", "Play")
         };
-        if icon_button(ui, icon, tooltip).clicked() {
+        if icon_button(ui, icon, tooltip, HEADER_ICON_BUTTON_SIZE).clicked() {
             playback.toggle();
         }
     });
@@ -107,7 +101,7 @@ fn panel_header(
     pending: &mut UiPendingActions,
 ) {
     ui.horizontal(|ui| {
-        ui.set_min_height(ICON_BUTTON_SIZE.y);
+        ui.set_min_height(HEADER_ICON_BUTTON_SIZE.y);
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             ui.heading("Gravitium");
         });
@@ -142,12 +136,13 @@ fn active_tab_panel(
     draft: &mut ControlPanelDraft,
     pending: &mut UiPendingActions,
     snapshot: &SimulationCpuSnapshot,
+    help: &mut HelpPopupState,
 ) {
     match tab {
-        ControlTab::Physics => physics_panel(ui, settings, snapshot),
-        ControlTab::Initial => initial_panel(ui, draft),
+        ControlTab::Physics => physics_panel(ui, settings, snapshot, help),
+        ControlTab::Initial => initial_panel(ui, draft, help),
         ControlTab::Display => {
-            display_panel(ui, config, pending);
+            display_panel(ui, config, pending, help);
             *config = config.clone().clamped();
         }
     }
@@ -172,6 +167,8 @@ fn draw_control_panel(
     mut pending: ResMut<UiPendingActions>,
     snapshot: Res<SimulationCpuSnapshot>,
     fps: Res<FpsDisplay>,
+    catalog: Res<HelpCatalog>,
+    mut help: ResMut<HelpPopupState>,
     mut tab: Local<ControlTab>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
@@ -199,6 +196,7 @@ fn draw_control_panel(
                     &mut draft,
                     &mut pending,
                     &snapshot,
+                    &mut help,
                 );
                 if mobile {
                     ui.add_space(MOBILE_BOTTOM_PADDING);
@@ -223,6 +221,8 @@ fn draw_control_panel(
     } else {
         viewport_rect.logical = Rect::from_corners(Vec2::ZERO, Vec2::ONE);
     }
+
+    show_help_overlay(ctx, &catalog, &mut help);
 
     Ok(())
 }
