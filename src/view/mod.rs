@@ -8,7 +8,7 @@ pub use sim_viewport::{SimulationCamera, SIMULATION_RENDER_LAYER, UI_RENDER_LAYE
 
 use bevy::prelude::*;
 
-use camera::CameraControlsPlugin;
+use camera::{CameraControlsPlugin, OrbitFocusPlugin};
 use selection::SelectionPlugin;
 use sim_viewport::SimulationViewportPlugin;
 
@@ -21,6 +21,7 @@ impl Plugin for ViewPlugin {
             SelectionPlugin,
             SimulationViewportPlugin,
             CameraControlsPlugin,
+            OrbitFocusPlugin,
         ));
     }
 }
