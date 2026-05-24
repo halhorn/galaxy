@@ -4,19 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gravitium — N-body Gravity Simulator</title>
-    <meta name="description" content="WebGPU で 10,000 体の N 体重力を GPU compute で動かす 3D シミュレータ。">
+    <meta name="description" content="WebGPU で N 体重力を GPU compute で動かす 3D シミュレータ。初期条件や物理パラメータを変えながら、銀河円盤や球状星団のような重力系をブラウザで対話的に観察できます。">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="halhorn">
+    <link rel="canonical" href="https://halhorn.github.io/gravitium/">
     <meta name="theme-color" content="#000000">
-    <meta property="og:title" content="Gravitium — N-body Gravity Simulator">
-    <meta property="og:description" content="WebGPU で 10,000 体の N 体重力を GPU compute で動かす 3D シミュレータ。">
-    <meta property="og:url" content="https://halhorn.github.io/gravitium/">
+
+    <!-- Open Graph（リンク共有時のプレビュー用。og:image は trunk の copy-file で dist へ同梱） -->
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Gravitium">
+    <meta property="og:title" content="Gravitium — N-body Gravity Simulator">
+    <meta property="og:description" content="WebGPU で N 体重力を GPU compute で動かす 3D シミュレータ。初期条件や物理パラメータを変えながら、銀河円盤や球状星団のような重力系をブラウザで対話的に観察できます。">
+    <meta property="og:url" content="https://halhorn.github.io/gravitium/">
+    <meta property="og:locale" content="ja_JP">
+    <meta property="og:image" content="https://halhorn.github.io/gravitium/gravitium_screenshot.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="2400">
+    <meta property="og:image:height" content="1200">
+    <meta property="og:image:alt" content="Gravitium の UI。左に設定パネル、右に N 体重力シミュレーション（銀河状の星団と中心の恒星）を表示。">
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Gravitium — N-body Gravity Simulator">
+    <meta name="twitter:description" content="WebGPU で N 体重力を GPU compute で動かす 3D シミュレータ。初期条件や物理パラメータを変えながら、銀河円盤や球状星団のような重力系をブラウザで対話的に観察できます。">
+    <meta name="twitter:image" content="https://halhorn.github.io/gravitium/gravitium_screenshot.png">
+    <meta name="twitter:image:alt" content="Gravitium の UI。左に設定パネル、右に N 体重力シミュレーション（銀河状の星団と中心の恒星）を表示。">
+
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "Gravitium",
+        "screenshot": "https://halhorn.github.io/gravitium/gravitium_screenshot.png",
         "url": "https://halhorn.github.io/gravitium/",
-        "description": "WebGPU で 10,000 体の N 体重力を GPU compute で動かす 3D シミュレータ。",
+        "description": "WebGPU で N 体重力を GPU compute で動かす 3D シミュレータ。初期条件や物理パラメータを変えながら、銀河円盤や球状星団のような重力系をブラウザで対話的に観察できます。",
         "applicationCategory": "SimulationApplication",
         "operatingSystem": "Any",
         "browserRequirements": "Requires WebGPU.",
@@ -171,6 +192,7 @@
             });
         })();
     </script>
+    <link data-trunk rel="copy-file" href="assets/gravitium/gravitium_screenshot.png"/>
     <link data-trunk rel="rust" data-cargo-features="webgpu" data-wasm-opt="z" id="gravitium-trunk-rust"/>
     <script>
         (function () {
