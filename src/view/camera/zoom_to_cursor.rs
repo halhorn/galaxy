@@ -4,13 +4,14 @@ use bevy::{
     input::touch::Touches,
     prelude::*,
 };
-use bevy_egui::EguiPreUpdateSet;
+use bevy_egui::{EguiPreUpdateSet, EguiPrimaryContextPass};
 use bevy_panorbit_camera::{EguiWantsFocus, PanOrbitCamera, PanOrbitCameraSystemSet};
 
-use crate::simulation::SimulationViewportRect;
+use crate::simulation::{SimulationRestartSet, SimulationViewportRect};
 use crate::view::SimulationCamera;
 
 use super::pivot::zoom_pivot_on_focus_plane;
+use super::reset::reset_simulation_camera_on_restart;
 
 /// Zoom delta applied to `PanOrbitCamera` targets.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -178,12 +179,17 @@ pub struct CameraControlsPlugin;
 
 impl Plugin for CameraControlsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TouchPinchState>().add_systems(
-            PostUpdate,
-            zoom_to_cursor_system
-                .after(EguiPreUpdateSet::InitContexts)
-                .before(PanOrbitCameraSystemSet),
-        );
+        app.init_resource::<TouchPinchState>()
+            .add_systems(
+                PostUpdate,
+                zoom_to_cursor_system
+                    .after(EguiPreUpdateSet::InitContexts)
+                    .before(PanOrbitCameraSystemSet),
+            )
+            .add_systems(
+                EguiPrimaryContextPass,
+                reset_simulation_camera_on_restart.in_set(SimulationRestartSet),
+            );
     }
 }
 

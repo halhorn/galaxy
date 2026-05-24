@@ -6,14 +6,14 @@ use bevy::camera::ClearColorConfig;
 use bevy::render::settings::{RenderCreation, WgpuSettings, WgpuSettingsPriority};
 use bevy::render::RenderPlugin;
 use bevy_egui::{EguiContext, PrimaryEguiContext};
-use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+use bevy_panorbit_camera::PanOrbitCameraPlugin;
 
 use crate::platform;
 use crate::simulation::SimulationPlugin;
 use crate::url::{UrlNavigation, UrlSyncPlugin};
 use crate::view::{
-    setup_bodies_render, BodiesMesh, SimulationCamera, ViewPlugin, SIMULATION_RENDER_LAYER,
-    UI_RENDER_LAYER,
+    default_simulation_camera_transform, default_simulation_pan_orbit, setup_bodies_render,
+    BodiesMesh, SimulationCamera, ViewPlugin, SIMULATION_RENDER_LAYER, UI_RENDER_LAYER,
 };
 use crate::ui::ControlUiPlugin;
 
@@ -73,11 +73,8 @@ fn setup_camera(mut commands: Commands) {
         },
         SimulationCamera,
         RenderLayers::layer(SIMULATION_RENDER_LAYER),
-        Transform::from_xyz(0.0, 80.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
-        PanOrbitCamera {
-            zoom_sensitivity: 0.0,
-            ..default()
-        },
+        default_simulation_camera_transform(),
+        default_simulation_pan_orbit(),
     ));
 }
 
