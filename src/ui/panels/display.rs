@@ -5,6 +5,7 @@ use crate::model::constants::{
     STAR_VISUAL_SCALE_MIN,
 };
 use crate::simulation::SimulationConfig;
+use crate::simulation::{profiling_enabled, ProfilingOverlay};
 use crate::ui::apply::UiPendingActions;
 use crate::ui::help::{slider_row, HelpId, HelpPopupState};
 
@@ -15,6 +16,7 @@ pub fn display_panel(
     config: &mut SimulationConfig,
     pending: &mut UiPendingActions,
     help: &mut HelpPopupState,
+    profiling: &mut ProfilingOverlay,
 ) {
     slider_row(
         ui,
@@ -49,6 +51,11 @@ pub fn display_panel(
     );
 
     ui.add_space(BOTTOM_PADDING);
+
+    if profiling_enabled() {
+        ui.checkbox(&mut profiling.visible, "Show profiling overlay");
+        ui.add_space(BOTTOM_PADDING);
+    }
 
     if ui.button("Reset All").clicked() {
         pending.reset_all = true;

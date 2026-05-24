@@ -42,18 +42,23 @@ pub fn fallback_logical_rect(window: &Window) -> Rect {
     }
 }
 
+/// WebGPU / Metal `max_texture_dimension_2d` on many Apple GPUs.
+const MAX_VIEWPORT_PHYSICAL: u32 = 8192;
+
 pub fn logical_rect_to_camera_viewport(rect: Rect, window: &Window) -> Viewport {
     let scale = window.resolution.scale_factor();
+
+    let mut phys_w = (rect.width().max(1.0) * scale).round() as u32;
+    let mut phys_h = (rect.height().max(1.0) * scale).round() as u32;
+    phys_w = phys_w.min(window.physical_width()).min(MAX_VIEWPORT_PHYSICAL);
+    phys_h = phys_h.min(window.physical_height()).min(MAX_VIEWPORT_PHYSICAL);
 
     Viewport {
         physical_position: UVec2::new(
             (rect.min.x * scale).round() as u32,
             (rect.min.y * scale).round() as u32,
         ),
-        physical_size: UVec2::new(
-            (rect.width().max(1.0) * scale).round() as u32,
-            (rect.height().max(1.0) * scale).round() as u32,
-        ),
+        physical_size: UVec2::new(phys_w.max(1), phys_h.max(1)),
         depth: 0.0..1.0,
     }
 }

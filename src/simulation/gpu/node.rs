@@ -1,21 +1,127 @@
 use bevy::{
     prelude::*,
     render::{
+        diagnostic::RecordDiagnostics,
         render_graph::{self, RenderLabel},
         render_resource::*,
     },
     shader::PipelineCacheError,
 };
 
-use crate::model::constants::{BODY_COUNT, MERGE_BUCKET_COUNT, WORKGROUP_SIZE};
-
+use crate::model::constants::{MERGE_BUCKET_COUNT, MERGE_ITERATIONS_PER_FRAME, WORKGROUP_SIZE};
 use crate::simulation::playback::PlaybackState;
+use crate::simulation::settings::SimulationSettings;
 
 use super::bind_groups::SimulationComputeBindGroups;
 use super::pipelines::SimulationComputePipelines;
 
-fn dispatch_workgroups() -> u32 {
-    (BODY_COUNT as u32).div_ceil(WORKGROUP_SIZE)
+fn dispatch_workgroups(active_count: u32) -> u32 {
+    active_count.div_ceil(WORKGROUP_SIZE)
+}
+
+fn run_compute_pass(
+    render_context: &mut bevy::render::renderer::RenderContext,
+    diagnostics: &impl RecordDiagnostics,
+    pass_name: &'static str,
+    record: impl FnOnce(&mut ComputePass<'_>),
+) {
+    let mut pass = render_context
+        .command_encoder()
+        .begin_compute_pass(&ComputePassDescriptor {
+            label: Some(pass_name),
+            ..default()
+        });
+    let span = diagnostics.pass_span(&mut pass, pass_name);
+    record(&mut pass);
+    span.end(&mut pass);
+}
+
+fn run_merge_find_and_apply(
+    render_context: &mut bevy::render::renderer::RenderContext,
+    diagnostics: &impl RecordDiagnostics,
+    bind_groups: &SimulationComputeBindGroups,
+    find_owner: &ComputePipeline,
+    apply_merge: &ComputePipeline,
+    workgroups: u32,
+) {
+    let mut pass = render_context
+        .command_encoder()
+        .begin_compute_pass(&ComputePassDescriptor {
+            label: Some("sim/merge_find_and_apply"),
+            ..default()
+        });
+
+    let find_span = diagnostics.pass_span(&mut pass, "sim/merge_find_owner");
+    pass.set_bind_group(0, &bind_groups.merge, &[]);
+    pass.set_pipeline(find_owner);
+    pass.dispatch_workgroups(workgroups, 1, 1);
+    find_span.end(&mut pass);
+
+    let apply_span = diagnostics.pass_span(&mut pass, "sim/merge_apply");
+    pass.set_bind_group(0, &bind_groups.merge, &[]);
+    pass.set_pipeline(apply_merge);
+    pass.dispatch_workgroups(workgroups, 1, 1);
+    apply_span.end(&mut pass);
+}
+
+fn run_merge_iteration(
+    render_context: &mut bevy::render::renderer::RenderContext,
+    diagnostics: &impl RecordDiagnostics,
+    bind_groups: &SimulationComputeBindGroups,
+    pipelines: &SimulationComputePipelines,
+    cache: &PipelineCache,
+    workgroups: u32,
+    bucket_workgroups: u32,
+) {
+    let merge_clear_buckets = cache
+        .get_compute_pipeline(pipelines.merge_clear_buckets)
+        .unwrap();
+    let merge_init_owner = cache.get_compute_pipeline(pipelines.merge_init_owner).unwrap();
+    let merge_build_grid = cache.get_compute_pipeline(pipelines.merge_build_grid).unwrap();
+    let merge_find_owner = cache.get_compute_pipeline(pipelines.merge_find_owner).unwrap();
+    let merge_apply = cache.get_compute_pipeline(pipelines.merge_apply).unwrap();
+
+    run_compute_pass(
+        render_context,
+        diagnostics,
+        "sim/merge_clear_buckets",
+        |pass| {
+            pass.set_bind_group(0, &bind_groups.merge, &[]);
+            pass.set_pipeline(merge_clear_buckets);
+            pass.dispatch_workgroups(bucket_workgroups, 1, 1);
+        },
+    );
+
+    run_compute_pass(
+        render_context,
+        diagnostics,
+        "sim/merge_init_owner",
+        |pass| {
+            pass.set_bind_group(0, &bind_groups.merge, &[]);
+            pass.set_pipeline(merge_init_owner);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+        },
+    );
+
+    run_compute_pass(
+        render_context,
+        diagnostics,
+        "sim/merge_build_grid",
+        |pass| {
+            pass.set_bind_group(0, &bind_groups.merge, &[]);
+            pass.set_pipeline(merge_build_grid);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+        },
+    );
+
+    run_merge_find_and_apply(
+        render_context,
+        diagnostics,
+        bind_groups,
+        merge_find_owner,
+        merge_apply,
+        workgroups,
+    );
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
@@ -73,60 +179,87 @@ impl render_graph::Node for SimulationComputeNode {
 
         let pipelines = world.resource::<SimulationComputePipelines>();
         let cache = world.resource::<PipelineCache>();
-        let workgroups = dispatch_workgroups();
-
-        let mut pass = render_context
-            .command_encoder()
-            .begin_compute_pass(&ComputePassDescriptor::default());
-
+        let settings = world.resource::<SimulationSettings>();
+        let workgroups = dispatch_workgroups(settings.active_count());
+        let bucket_workgroups = (MERGE_BUCKET_COUNT as u32).div_ceil(256);
+        let diagnostics = render_context.diagnostic_recorder();
         let playback = world.resource::<PlaybackState>();
+
         if playback.is_running() {
             let gravity = cache.get_compute_pipeline(pipelines.gravity).unwrap();
             let position_step = cache.get_compute_pipeline(pipelines.position_step).unwrap();
             let velocity_step = cache.get_compute_pipeline(pipelines.velocity_step).unwrap();
-
-            pass.set_bind_group(0, &bind_groups.integrate, &[]);
-            pass.set_pipeline(position_step);
-            pass.dispatch_workgroups(workgroups, 1, 1);
-
-            pass.set_bind_group(0, &bind_groups.gravity, &[]);
-            pass.set_pipeline(gravity);
-            pass.dispatch_workgroups(workgroups, 1, 1);
-
-            pass.set_bind_group(0, &bind_groups.integrate, &[]);
-            pass.set_pipeline(velocity_step);
-            pass.dispatch_workgroups(workgroups, 1, 1);
-
-            let bucket_workgroups = (MERGE_BUCKET_COUNT as u32).div_ceil(256);
             let merge_prepare = cache.get_compute_pipeline(pipelines.merge_prepare).unwrap();
-            let merge_clear_buckets = cache
-                .get_compute_pipeline(pipelines.merge_clear_buckets)
-                .unwrap();
-            let merge_init_owner = cache.get_compute_pipeline(pipelines.merge_init_owner).unwrap();
-            let merge_build_grid = cache.get_compute_pipeline(pipelines.merge_build_grid).unwrap();
-            let merge_find_owner = cache.get_compute_pipeline(pipelines.merge_find_owner).unwrap();
-            let merge_apply = cache.get_compute_pipeline(pipelines.merge_apply).unwrap();
 
-            pass.set_bind_group(0, &bind_groups.merge, &[]);
-            pass.set_pipeline(merge_prepare);
-            pass.dispatch_workgroups(workgroups, 1, 1);
-            pass.set_pipeline(merge_clear_buckets);
-            pass.dispatch_workgroups(bucket_workgroups, 1, 1);
-            pass.set_pipeline(merge_init_owner);
-            pass.dispatch_workgroups(workgroups, 1, 1);
-            pass.set_pipeline(merge_build_grid);
-            pass.dispatch_workgroups(workgroups, 1, 1);
-            pass.set_pipeline(merge_find_owner);
-            pass.dispatch_workgroups(workgroups, 1, 1);
-            pass.set_pipeline(merge_apply);
-            pass.dispatch_workgroups(workgroups, 1, 1);
+            run_compute_pass(
+                render_context,
+                &diagnostics,
+                "sim/position_step",
+                |pass| {
+                    pass.set_bind_group(0, &bind_groups.integrate, &[]);
+                    pass.set_pipeline(position_step);
+                    pass.dispatch_workgroups(workgroups, 1, 1);
+                },
+            );
+
+            run_compute_pass(
+                render_context,
+                &diagnostics,
+                "sim/gravity",
+                |pass| {
+                    pass.set_bind_group(0, &bind_groups.gravity, &[]);
+                    pass.set_pipeline(gravity);
+                    pass.dispatch_workgroups(workgroups, 1, 1);
+                },
+            );
+
+            run_compute_pass(
+                render_context,
+                &diagnostics,
+                "sim/velocity_step",
+                |pass| {
+                    pass.set_bind_group(0, &bind_groups.integrate, &[]);
+                    pass.set_pipeline(velocity_step);
+                    pass.dispatch_workgroups(workgroups, 1, 1);
+                },
+            );
+
+            for _ in 0..MERGE_ITERATIONS_PER_FRAME {
+                run_compute_pass(
+                    render_context,
+                    &diagnostics,
+                    "sim/merge_prepare",
+                    |pass| {
+                        pass.set_bind_group(0, &bind_groups.merge, &[]);
+                        pass.set_pipeline(merge_prepare);
+                        pass.dispatch_workgroups(workgroups, 1, 1);
+                    },
+                );
+
+                run_merge_iteration(
+                    render_context,
+                    &diagnostics,
+                    bind_groups,
+                    pipelines,
+                    cache,
+                    workgroups,
+                    bucket_workgroups,
+                );
+            }
         }
 
         // O(n) color pass — runs while paused so body colors stay in sync with mass/flash state.
         let colors = cache.get_compute_pipeline(pipelines.colors).unwrap();
-        pass.set_bind_group(0, &bind_groups.colors, &[]);
-        pass.set_pipeline(colors);
-        pass.dispatch_workgroups(workgroups, 1, 1);
+        run_compute_pass(
+            render_context,
+            &diagnostics,
+            "sim/colors",
+            |pass| {
+                pass.set_bind_group(0, &bind_groups.colors, &[]);
+                pass.set_pipeline(colors);
+                pass.dispatch_workgroups(workgroups, 1, 1);
+            },
+        );
 
         Ok(())
     }

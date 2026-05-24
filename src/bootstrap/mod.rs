@@ -9,7 +9,7 @@ use bevy_egui::{EguiContext, PrimaryEguiContext};
 use bevy_panorbit_camera::PanOrbitCameraPlugin;
 
 use crate::platform;
-use crate::simulation::SimulationPlugin;
+use crate::simulation::{add_diagnostics_plugins, automated_profiling_active, profiling_enabled, SimulationPlugin};
 use crate::url::{UrlNavigation, UrlSyncPlugin};
 use crate::view::{
     default_simulation_camera_transform, default_simulation_pan_orbit, setup_bodies_render,
@@ -19,8 +19,9 @@ use crate::ui::ControlUiPlugin;
 
 /// ネイティブ・WASM 共通の `App` を組み立てて実行する。
 pub fn run() {
-    App::new()
-        .add_plugins(DefaultPlugins.set(RenderPlugin {
+    let mut app = App::new();
+    let bench_window = automated_profiling_active();
+    app.add_plugins(DefaultPlugins.set(RenderPlugin {
             render_creation: RenderCreation::Automatic(WgpuSettings {
                 // Safari / iOS WebGPU は Functionality 優先だとパイプラインが落ちることがある。
                 priority: WgpuSettingsPriority::Compatibility,
@@ -31,14 +32,27 @@ pub fn run() {
             primary_window: Some(Window {
                 title: "Gravitium — Gravity Simulator".to_string(),
                 canvas: Some("#gravitium-canvas".into()),
-                fit_canvas_to_parent: true,
+                fit_canvas_to_parent: !bench_window,
                 prevent_default_event_handling: true,
+                #[cfg(not(target_arch = "wasm32"))]
+                resolution: if bench_window {
+                    bevy::window::WindowResolution::new(1280, 720)
+                        .with_scale_factor_override(1.0)
+                } else {
+                    bevy::window::WindowResolution::default()
+                },
+                resizable: !bench_window,
                 ..default()
             }),
             ..default()
         }))
-        .insert_resource(UrlNavigation(platform::url_navigation_arc()))
-        .add_plugins((
+        .insert_resource(UrlNavigation(platform::url_navigation_arc()));
+
+    if profiling_enabled() {
+        add_diagnostics_plugins(&mut app);
+    }
+
+    app.add_plugins((
             UrlSyncPlugin,
             PanOrbitCameraPlugin,
             SimulationPlugin,

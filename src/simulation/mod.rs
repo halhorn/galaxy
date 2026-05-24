@@ -2,6 +2,7 @@ mod commands;
 mod config;
 pub mod gpu;
 mod playback;
+mod profiling;
 mod restart;
 mod settings;
 pub mod shaders;
@@ -12,6 +13,10 @@ pub use commands::{SimulationCommand, SimulationSpawned};
 pub use config::SimulationConfig;
 pub use gpu::SimulationGpuBuffers;
 pub use playback::{PlaybackMode, PlaybackState};
+pub use profiling::{
+    add_diagnostics_plugins, automated_profiling_active, physics_state_hash, profiling_enabled,
+    ProfilingOverlay, SimulationProfilingPlugin,
+};
 pub use restart::restart_simulation;
 pub use settings::SimulationSettings;
 pub use viewport::{
@@ -37,10 +42,15 @@ impl Plugin for SimulationPlugin {
             .init_resource::<SimulationSettings>()
             .init_resource::<PlaybackState>()
             .init_resource::<SimulationViewportRect>()
+            .init_resource::<ProfilingOverlay>()
             .add_message::<SimulationSpawned>()
             .add_message::<SimulationCommand>()
             .add_plugins(SimulationGpuPlugin)
             .add_systems(Startup, (register_simulation_shaders, spawn_initial_simulation))
             .add_systems(Update, tick_sim_time);
+
+        if profiling_enabled() {
+            app.add_plugins(SimulationProfilingPlugin);
+        }
     }
 }

@@ -5,7 +5,7 @@ use crate::model::force::MAX_FORCE_TERMS;
 use crate::simulation::config::SimulationConfig;
 use crate::simulation::settings::SimulationSettings;
 
-#[derive(Clone, Copy, ShaderType)]
+#[derive(Clone, Copy, ShaderType, PartialEq)]
 pub struct GpuForceTerm {
     pub sign: i32,
     pub exponent: i32,
@@ -13,7 +13,7 @@ pub struct GpuForceTerm {
     pub _pad: u32,
 }
 
-#[derive(Clone, Copy, ShaderType)]
+#[derive(Clone, Copy, ShaderType, PartialEq)]
 pub struct GravityParams {
     pub n: u32,
     pub term_count: u32,
@@ -22,7 +22,7 @@ pub struct GravityParams {
     pub terms: [GpuForceTerm; MAX_FORCE_TERMS],
 }
 
-#[derive(Clone, Copy, ShaderType)]
+#[derive(Clone, Copy, ShaderType, PartialEq)]
 pub struct IntegrateParams {
     pub n: u32,
     pub dt: f32,
@@ -30,7 +30,7 @@ pub struct IntegrateParams {
     pub _pad: f32,
 }
 
-#[derive(Clone, Copy, ShaderType)]
+#[derive(Clone, Copy, ShaderType, PartialEq)]
 pub struct MergeParams {
     pub n: u32,
     pub merge_radius_factor: f32,
@@ -94,7 +94,7 @@ impl MergeParams {
     }
 }
 
-#[derive(Clone, Copy, ShaderType)]
+#[derive(Clone, Copy, ShaderType, PartialEq)]
 pub struct ColorsParams {
     pub n: u32,
     pub min_mass: f32,

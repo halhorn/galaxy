@@ -1,4 +1,4 @@
-// Parallel merge (≤8 storage buffers for WebGPU). Scratch: [0..n) pos+mass, [n..2n) vel.
+// Parallel merge (≤8 storage buffers for WebGPU). Scratch: [0..n) pos+mass, [n..2n) vel+radius.
 // merge_aux: [0..n) bucket_next, [n..2n) merge_flash.
 // merge_flash packs: bit0 = absorbed this pass, bits1+ = frames remaining (0..MERGE_FLASH_FRAMES).
 
@@ -67,11 +67,11 @@ fn snap_vel(i: u32) -> vec3<f32> {
     return scratch[params.n + i].xyz;
 }
 
-const SUN_RADIUS_AU: f32 = 696000.0 / 149597870.7;
-
-fn physical_radius_from_mass(mass: f32) -> f32 {
-    return SUN_RADIUS_AU * pow(mass, 1.0 / 3.0);
+fn snap_radius(i: u32) -> f32 {
+    return scratch[params.n + i].w;
 }
+
+const SUN_RADIUS_AU: f32 = 696000.0 / 149597870.7;
 
 fn hash_cell(cx: i32, cy: i32, cz: i32) -> u32 {
     let hx = bitcast<u32>(cx);
@@ -98,9 +98,7 @@ fn mergeable(i: u32, j: u32) -> bool {
         return false;
     }
     let dist = length(snap_pos(i) - snap_pos(j));
-    let ri = physical_radius_from_mass(snap_mass(i));
-    let rj = physical_radius_from_mass(snap_mass(j));
-    let touch = (ri + rj) * params.merge_radius_factor;
+    let touch = (snap_radius(i) + snap_radius(j)) * params.merge_radius_factor;
     return dist < touch;
 }
 
@@ -130,8 +128,10 @@ fn prepare(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     set_absorbed(i, next_flash << 1u);
     set_bucket_next(i, INVALID);
-    scratch[i] = vec4<f32>(positions[i].xyz, masses[i]);
-    scratch[params.n + i] = velocities[i];
+    let mass = masses[i];
+    let radius = SUN_RADIUS_AU * pow(mass, 1.0 / 3.0);
+    scratch[i] = vec4<f32>(positions[i].xyz, mass);
+    scratch[params.n + i] = vec4<f32>(velocities[i].xyz, radius);
 }
 
 @compute @workgroup_size(256)

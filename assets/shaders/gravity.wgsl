@@ -18,18 +18,34 @@ struct Params {
 @group(0) @binding(2) var<storage, read_write> accelerations_new: array<vec4<f32>>;
 @group(0) @binding(3) var<uniform> params: Params;
 
-fn pow_d(exp: i32, dist_sq: f32, d: f32) -> f32 {
+fn pow_d(exp: i32, inv_dist: f32, inv_dist_sq: f32) -> f32 {
     switch exp {
-        case -5: { return 1.0 / (dist_sq * dist_sq * d); }
-        case -4: { return 1.0 / (dist_sq * dist_sq); }
-        case -3: { return 1.0 / (dist_sq * d); }
-        case -2: { return 1.0 / dist_sq; }
-        case -1: { return 1.0 / d; }
+        case -5: { let inv_d4 = inv_dist_sq * inv_dist_sq; return inv_d4 * inv_dist; }
+        case -4: { return inv_dist_sq * inv_dist_sq; }
+        case -3: { return inv_dist_sq * inv_dist; }
+        case -2: { return inv_dist_sq; }
+        case -1: { return inv_dist; }
         case 0: { return 1.0; }
-        case 1: { return d; }
-        case 2: { return dist_sq; }
+        case 1: { return 1.0 / inv_dist; }
+        case 2: { return 1.0 / inv_dist_sq; }
         default: { return 0.0; }
     }
+}
+
+fn accumulate_pair(
+    acc: ptr<function, vec3<f32>>,
+    pos_i: vec3<f32>,
+    pos_j: vec3<f32>,
+    mass_j: f32,
+    inv_dist: f32,
+    inv_dist_sq: f32,
+    sign: f32,
+    coeff: f32,
+    exp: i32,
+) {
+    let r = pos_j - pos_i;
+    let power = pow_d(exp, inv_dist, inv_dist_sq);
+    *acc += r * sign * coeff * power * mass_j;
 }
 
 @compute @workgroup_size(256)
@@ -55,9 +71,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                 }
                 let r = positions[j].xyz - pos_i;
                 let dist_sq = dot(r, r) + params.softening_sq;
-                let d = sqrt(dist_sq);
-                let power = pow_d(exp, dist_sq, d);
-                acc += r * sign * coeff * power * masses[j];
+                let inv_dist = inverseSqrt(dist_sq);
+                let inv_dist_sq = inv_dist * inv_dist;
+                accumulate_pair(&acc, pos_i, positions[j].xyz, masses[j], inv_dist, inv_dist_sq, sign, coeff, exp);
             }
         }
     } else {
@@ -67,7 +83,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
             }
             let r = positions[j].xyz - pos_i;
             let dist_sq = dot(r, r) + params.softening_sq;
-            let d = sqrt(dist_sq);
+            let inv_dist = inverseSqrt(dist_sq);
+            let inv_dist_sq = inv_dist * inv_dist;
 
             for (var k = 0u; k < params.term_count; k++) {
                 let term = params.terms[k];
@@ -75,8 +92,17 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                     continue;
                 }
                 let sign = f32(term.sign);
-                let power = pow_d(term.exponent, dist_sq, d);
-                acc += r * sign * term.coefficient * power * masses[j];
+                accumulate_pair(
+                    &acc,
+                    pos_i,
+                    positions[j].xyz,
+                    masses[j],
+                    inv_dist,
+                    inv_dist_sq,
+                    sign,
+                    term.coefficient,
+                    term.exponent,
+                );
             }
         }
     }

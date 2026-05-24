@@ -7,8 +7,8 @@ use bevy::{
 use bevy_panorbit_camera::EguiWantsFocus;
 
 use crate::model::body::visual_radius;
-use crate::model::constants::{BODY_COUNT, MIN_MASS};
-use crate::simulation::SimulationConfig;
+use crate::model::constants::MIN_MASS;
+use crate::simulation::{SimulationConfig, SimulationSettings};
 use crate::view::SimulationCamera;
 use crate::view::selection::snapshot::SimulationCpuSnapshot;
 
@@ -37,6 +37,7 @@ pub struct ClickPickInput<'w, 's> {
     windows: Query<'w, 's, &'static Window>,
     egui_wants_focus: Res<'w, EguiWantsFocus>,
     config: Res<'w, SimulationConfig>,
+    settings: Res<'w, SimulationSettings>,
     picker: ResMut<'w, ClickPickerState>,
     selected: ResMut<'w, SelectedBody>,
     snapshot: Res<'w, SimulationCpuSnapshot>,
@@ -88,6 +89,7 @@ pub fn click_pick_body(mut input: ClickPickInput<'_, '_>) {
     pick_body_at_cursor(
         cursor,
         &input.snapshot,
+        input.settings.active_count() as usize,
         &input.camera,
         input.config.star_visual_scale,
         input.config.min_star_visual_scale,
@@ -98,12 +100,16 @@ pub fn click_pick_body(mut input: ClickPickInput<'_, '_>) {
 fn pick_body_at_cursor(
     cursor: Vec2,
     snapshot: &SimulationCpuSnapshot,
+    active_count: usize,
     camera: &Query<(&Camera, &GlobalTransform), With<SimulationCamera>>,
     star_visual_scale: f32,
     min_star_visual_scale: f32,
     selected: &mut SelectedBody,
 ) {
-    if !snapshot.ready || snapshot.masses.len() < BODY_COUNT || snapshot.positions.len() < BODY_COUNT {
+    if !snapshot.ready
+        || snapshot.masses.len() < active_count
+        || snapshot.positions.len() < active_count
+    {
         return;
     }
 
@@ -115,7 +121,7 @@ fn pick_body_at_cursor(
     };
 
     let mut best: Option<(usize, f32)> = None;
-    for i in 0..BODY_COUNT {
+    for i in 0..active_count {
         let mass = snapshot.masses[i];
         if mass <= MIN_MASS {
             continue;

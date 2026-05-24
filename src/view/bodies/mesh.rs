@@ -16,8 +16,9 @@ pub const ATTRIBUTE_BODY_ID: MeshVertexAttribute =
 #[derive(Component)]
 pub struct BodiesMesh;
 
-/// One indexed unit sphere per body (single draw call; positions from GPU storage in the shader).
-pub fn build_bodies_mesh() -> Mesh {
+/// One indexed unit sphere per active body slot (single draw call; positions from GPU storage in the shader).
+pub fn build_bodies_mesh(active_count: usize) -> Mesh {
+    let body_count = active_count.min(BODY_COUNT);
     let unit = Sphere::new(0.5)
         .mesh()
         .kind(SphereKind::Ico {
@@ -44,13 +45,13 @@ pub fn build_bodies_mesh() -> Mesh {
     };
 
     let verts_per_body = base_positions.len();
-    let total_verts = BODY_COUNT * verts_per_body;
+    let total_verts = body_count * verts_per_body;
     let mut positions = Vec::with_capacity(total_verts);
     let mut normals = Vec::with_capacity(total_verts);
     let mut body_ids = Vec::with_capacity(total_verts);
-    let mut indices = Vec::with_capacity(BODY_COUNT * base_indices.len());
+    let mut indices = Vec::with_capacity(body_count * base_indices.len());
 
-    for body_id in 0..BODY_COUNT {
+    for body_id in 0..body_count {
         let base = (body_id * verts_per_body) as u32;
         positions.extend(base_positions.iter().copied());
         normals.extend(base_normals.iter().copied());

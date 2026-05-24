@@ -23,8 +23,11 @@ pub const MERGE_RADIUS_FACTOR_MAX: f32 = 100.0;
 /// Frames to fade merge flash back to mass-based body color.
 pub const MERGE_FLASH_FRAMES: u32 = 60;
 
-/// Spatial hash buckets for the merge pass.
-pub const MERGE_BUCKET_COUNT: usize = 16_384;
+/// Spatial hash buckets for the merge pass (32k balances chain length vs clear cost).
+pub const MERGE_BUCKET_COUNT: usize = 32_768;
+
+/// Merge sub-pipeline runs per simulation frame (clears grid between iterations).
+pub const MERGE_ITERATIONS_PER_FRAME: u32 = 2;
 
 /// Conservative max body radius (AU) for merge grid; covers `STAR_MASS_MAX` at `SUN_RADIUS_AU`.
 pub const MERGE_MAX_RADIUS: f32 = 0.25;

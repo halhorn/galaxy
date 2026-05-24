@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPrimaryContextPass};
 
 use crate::simulation::{
-    PlaybackState, SimulationConfig, SimulationSettings, SimulationViewportRect,
+    PlaybackState, ProfilingOverlay, SimulationConfig, SimulationSettings, SimulationViewportRect,
     SimViewportSystems, DESKTOP_PANEL_WIDTH, MOBILE_BREAKPOINT_PX, MOBILE_PANEL_HEIGHT,
 };
 use crate::view::SimulationCpuSnapshot;
@@ -137,12 +137,13 @@ fn active_tab_panel(
     pending: &mut UiPendingActions,
     snapshot: &SimulationCpuSnapshot,
     help: &mut HelpPopupState,
+    profiling: &mut ProfilingOverlay,
 ) {
     match tab {
         ControlTab::Physics => physics_panel(ui, settings, snapshot, help),
         ControlTab::Initial => initial_panel(ui, draft, help),
         ControlTab::Display => {
-            display_panel(ui, config, pending, help);
+            display_panel(ui, config, pending, help, profiling);
             *config = config.clone().clamped();
         }
     }
@@ -169,6 +170,7 @@ fn draw_control_panel(
     fps: Res<FpsDisplay>,
     catalog: Res<HelpCatalog>,
     mut help: ResMut<HelpPopupState>,
+    mut profiling: ResMut<ProfilingOverlay>,
     mut tab: Local<ControlTab>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
@@ -197,6 +199,7 @@ fn draw_control_panel(
                     &mut pending,
                     &snapshot,
                     &mut help,
+                    &mut profiling,
                 );
                 if mobile {
                     ui.add_space(MOBILE_BOTTOM_PADDING);

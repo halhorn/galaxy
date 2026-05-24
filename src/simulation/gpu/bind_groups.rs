@@ -23,6 +23,31 @@ pub struct SimulationComputeBindGroups {
     pub colors: BindGroup,
 }
 
+#[derive(Default)]
+pub(crate) struct CachedBindGroupParams {
+    last: Option<(GravityParams, IntegrateParams, MergeParams, ColorsParams)>,
+}
+
+#[derive(Default)]
+pub(crate) struct SimulationComputeUniforms {
+    gravity: Option<UniformBuffer<GravityParams>>,
+    integrate: Option<UniformBuffer<IntegrateParams>>,
+    merge: Option<UniformBuffer<MergeParams>>,
+    colors: Option<UniformBuffer<ColorsParams>>,
+}
+
+fn current_params(
+    settings: &SimulationSettings,
+    config: &SimulationConfig,
+) -> (GravityParams, IntegrateParams, MergeParams, ColorsParams) {
+    (
+        GravityParams::from_settings(settings),
+        IntegrateParams::from_settings(settings, config),
+        MergeParams::from_settings(settings),
+        ColorsParams::from_settings(settings),
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn prepare_simulation_bind_groups(
     mut commands: Commands,
@@ -34,7 +59,15 @@ pub fn prepare_simulation_bind_groups(
     render_queue: Res<RenderQueue>,
     pipeline_cache: Res<PipelineCache>,
     storage: Res<RenderAssets<GpuShaderStorageBuffer>>,
+    mut cache: Local<CachedBindGroupParams>,
+    mut uniforms: Local<SimulationComputeUniforms>,
 ) {
+    let params = current_params(&settings, &config);
+    if cache.last.as_ref() == Some(&params) {
+        return;
+    }
+    cache.last = Some(params);
+
     let Some(positions) = storage.get(&gpu_buffers.positions) else {
         return;
     };
@@ -66,21 +99,45 @@ pub fn prepare_simulation_bind_groups(
         return;
     };
 
-    let gravity_params = GravityParams::from_settings(&settings);
-    let mut gravity_uniform = UniformBuffer::from(gravity_params);
-    gravity_uniform.write_buffer(&render_device, &render_queue);
+    let (gravity_params, integrate_params, merge_params, colors_params) = params;
 
-    let integrate_params = IntegrateParams::from_settings(&settings, &config);
-    let mut integrate_uniform = UniformBuffer::from(integrate_params);
-    integrate_uniform.write_buffer(&render_device, &render_queue);
+    if uniforms.gravity.is_none() {
+        uniforms.gravity = Some(UniformBuffer::from(gravity_params));
+        uniforms.integrate = Some(UniformBuffer::from(integrate_params));
+        uniforms.merge = Some(UniformBuffer::from(merge_params));
+        uniforms.colors = Some(UniformBuffer::from(colors_params));
+    } else {
+        *uniforms.gravity.as_mut().unwrap() = UniformBuffer::from(gravity_params);
+        *uniforms.integrate.as_mut().unwrap() = UniformBuffer::from(integrate_params);
+        *uniforms.merge.as_mut().unwrap() = UniformBuffer::from(merge_params);
+        *uniforms.colors.as_mut().unwrap() = UniformBuffer::from(colors_params);
+    }
 
-    let merge_params = MergeParams::from_settings(&settings);
-    let mut merge_uniform = UniformBuffer::from(merge_params);
-    merge_uniform.write_buffer(&render_device, &render_queue);
+    uniforms
+        .gravity
+        .as_mut()
+        .unwrap()
+        .write_buffer(&render_device, &render_queue);
+    uniforms
+        .integrate
+        .as_mut()
+        .unwrap()
+        .write_buffer(&render_device, &render_queue);
+    uniforms
+        .merge
+        .as_mut()
+        .unwrap()
+        .write_buffer(&render_device, &render_queue);
+    uniforms
+        .colors
+        .as_mut()
+        .unwrap()
+        .write_buffer(&render_device, &render_queue);
 
-    let colors_params = ColorsParams::from_settings(&settings);
-    let mut colors_uniform = UniformBuffer::from(colors_params);
-    colors_uniform.write_buffer(&render_device, &render_queue);
+    let gravity_uniform = uniforms.gravity.as_ref().unwrap();
+    let integrate_uniform = uniforms.integrate.as_ref().unwrap();
+    let merge_uniform = uniforms.merge.as_ref().unwrap();
+    let colors_uniform = uniforms.colors.as_ref().unwrap();
 
     let gravity_bind_group = render_device.create_bind_group(
         None,
@@ -89,7 +146,7 @@ pub fn prepare_simulation_bind_groups(
             positions.buffer.as_entire_buffer_binding(),
             masses.buffer.as_entire_buffer_binding(),
             accelerations_new.buffer.as_entire_buffer_binding(),
-            &gravity_uniform,
+            gravity_uniform,
         )),
     );
 
@@ -102,7 +159,7 @@ pub fn prepare_simulation_bind_groups(
             accelerations.buffer.as_entire_buffer_binding(),
             accelerations_new.buffer.as_entire_buffer_binding(),
             masses.buffer.as_entire_buffer_binding(),
-            &integrate_uniform,
+            integrate_uniform,
         )),
     );
 
@@ -118,7 +175,7 @@ pub fn prepare_simulation_bind_groups(
             merge_bucket_heads.buffer.as_entire_buffer_binding(),
             merge_aux.buffer.as_entire_buffer_binding(),
             merge_owner.buffer.as_entire_buffer_binding(),
-            &merge_uniform,
+            merge_uniform,
         )),
     );
 
@@ -129,7 +186,7 @@ pub fn prepare_simulation_bind_groups(
             masses.buffer.as_entire_buffer_binding(),
             merge_aux.buffer.as_entire_buffer_binding(),
             body_colors.buffer.as_entire_buffer_binding(),
-            &colors_uniform,
+            colors_uniform,
         )),
     );
 
