@@ -38,7 +38,7 @@ pub const SUN_RADIUS_AU: f32 = 696_000.0 / 149_597_870.7;
 /// Rendering multiplier for star spheres (physics radii stay at `SUN_RADIUS_AU`).
 pub const STAR_VISUAL_SCALE_MIN: f32 = 1.0;
 /// Default ≈ old `0.5 * M^(1/3)` appearance for a 1 M☉ star.
-pub const STAR_VISUAL_SCALE: f32 = 100.0;
+pub const STAR_VISUAL_SCALE: f32 = 50.0;
 pub const STAR_VISUAL_SCALE_MAX: f32 = 1000.0;
 
 /// Minimum rendered star radius in AU (slider lower bound).
