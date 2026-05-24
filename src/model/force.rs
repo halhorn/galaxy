@@ -202,16 +202,54 @@ fn format_term(term: &ForceTerm) -> String {
     // and sign is inverted (approaching −, receding +).
     let sign_char = if term.sign >= 0 { '-' } else { '+' };
     let coeff = format_coefficient(term.coefficient);
-    format!("{sign_char}{coeff} * d^{}", term.exponent + 1)
+    format!("{sign_char} {coeff} * d^{}", term.exponent + 1)
 }
 
+const DISPLAY_SIG_FIGS: i32 = 3;
+
 fn format_coefficient(c: f32) -> String {
-    if (c - G).abs() < 1e-3 {
-        "G".to_string()
-    } else if (c - 1.0).abs() < 1e-3 {
-        "1".to_string()
+    let rounded = round_to_sig_figs(f64::from(c), DISPLAY_SIG_FIGS);
+    if rounded == round_to_sig_figs(f64::from(G), DISPLAY_SIG_FIGS) {
+        return "G".to_string();
+    }
+    if rounded == 1.0 {
+        return "1".to_string();
+    }
+    format_f64_sig_figs(rounded, DISPLAY_SIG_FIGS)
+}
+
+fn round_to_sig_figs(x: f64, sig: i32) -> f64 {
+    if x == 0.0 || !x.is_finite() {
+        return x;
+    }
+    let log10 = x.abs().log10();
+    if !log10.is_finite() {
+        return x;
+    }
+    let scale = 10_f64.powf(sig as f64 - 1.0 - log10.floor());
+    (x * scale).round() / scale
+}
+
+fn format_f64_sig_figs(x: f64, sig: i32) -> String {
+    let rounded = round_to_sig_figs(x, sig);
+    if rounded == 0.0 {
+        return "0".to_string();
+    }
+    let m_i = rounded.abs().log10().floor() as i32;
+    let frac_digits = ((sig - 1) - m_i).clamp(0, 20) as usize;
+    let rendered = format!("{rounded:.frac_digits$}");
+    trim_trailing_fraction_zeros(&rendered)
+}
+
+fn trim_trailing_fraction_zeros(s: &str) -> String {
+    if !s.contains('.') {
+        return s.to_string();
+    }
+    let s = s.trim_end_matches('0').trim_end_matches('.');
+    if s.is_empty() || s == "-" {
+        "0".to_string()
     } else {
-        format!("{c:.3}")
+        s.to_string()
     }
 }
 
@@ -287,7 +325,29 @@ mod tests {
     #[test]
     fn display_string_formats_newtonian() {
         let force = ForceLaw::newtonian(G);
-        assert_eq!(force.display_string(), "-G * d^-2");
+        assert_eq!(force.display_string(), "- G * d^-2");
+    }
+
+    #[test]
+    fn display_string_uses_three_significant_figures() {
+        let mut terms = empty_terms();
+        terms[0] = ForceTerm {
+            sign: 1,
+            exponent: -3,
+            coefficient: 12.3456,
+        };
+        let force = ForceLaw {
+            terms,
+            term_count: 1,
+        };
+        assert_eq!(force.display_string(), "- 12.3 * d^-2");
+
+        terms[0].coefficient = 0.00123456;
+        let force = ForceLaw {
+            terms,
+            term_count: 1,
+        };
+        assert_eq!(force.display_string(), "- 0.00123 * d^-2");
     }
 
     #[test]

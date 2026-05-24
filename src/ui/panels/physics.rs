@@ -7,8 +7,10 @@ use crate::model::constants::{
 use crate::model::force::{ForceLaw, ForceTerm, MAX_FORCE_TERMS};
 use crate::model::PhysicsSettings;
 use crate::simulation::SimulationSettings;
+use crate::ui::fonts::EQUATION_FONT;
 
 const SECTION_HEADING_SIZE: f32 = 13.0;
+const FORCE_EQUATION_FONT_SIZE: f32 = 20.0;
 const SECTION_SPACING: f32 = 12.0;
 const ADD_TERM_TOP_SPACING: f32 = 8.0;
 const DISPLAY_EXPONENT_MIN: i32 = FORCE_EXPONENT_MIN + 1;
@@ -121,9 +123,20 @@ fn show_term_row(ui: &mut egui::Ui, index: usize, term: &mut ForceTerm, removabl
     remove
 }
 
+fn show_force_equation(ui: &mut egui::Ui, force: &ForceLaw) {
+    ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+        ui.label(
+            egui::RichText::new(format!("F = {}", force.display_string()))
+                .size(FORCE_EQUATION_FONT_SIZE)
+                .color(egui::Color32::WHITE)
+                .family(egui::FontFamily::Name(EQUATION_FONT.into())),
+        );
+    });
+}
+
 fn force_law_section(ui: &mut egui::Ui, force: &mut ForceLaw, physics: &PhysicsSettings) {
     section_heading(ui, "Force law");
-    ui.label(format!("Preview: {}", force.display_string()));
+    show_force_equation(ui, force);
 
     ui.add_space(SECTION_SPACING);
     ui.horizontal(|ui| {

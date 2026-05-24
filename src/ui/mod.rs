@@ -2,6 +2,7 @@
 
 mod apply;
 mod draft;
+mod fonts;
 mod keyboard;
 mod panels;
 
@@ -12,6 +13,7 @@ use bevy_panorbit_camera::EguiFocusIncludesHover;
 use crate::simulation::SimViewportSystems;
 
 use apply::UiApplyPlugin;
+use fonts::setup_equation_font;
 use keyboard::playback_shortcuts;
 use panels::ControlPanelsPlugin;
 
@@ -32,6 +34,7 @@ impl Plugin for ControlUiPlugin {
                 (SimViewportSystems::Layout, SimViewportSystems::CameraViewport).chain(),
             )
             .add_plugins((ControlPanelsPlugin, UiApplyPlugin))
+            .add_systems(PostStartup, setup_equation_font)
             .add_systems(Update, playback_shortcuts);
     }
 }
