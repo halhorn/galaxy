@@ -1,13 +1,16 @@
 use bevy_egui::egui;
 
 use crate::model::constants::{
-    FORCE_COEFFICIENT_MAX, FORCE_COEFFICIENT_MIN, FORCE_EXPONENT_MAX, FORCE_EXPONENT_MIN, G,
+    FORCE_COEFFICIENT_MAX, FORCE_COEFFICIENT_MIN, FORCE_EXPONENT_MAX, FORCE_EXPONENT_MIN,
     MERGE_RADIUS_FACTOR_MAX, MERGE_RADIUS_FACTOR_MIN, SOFTENING_MAX, SOFTENING_MIN,
 };
 use crate::model::force::{ForceLaw, ForceTerm, MAX_FORCE_TERMS};
-use crate::model::PhysicsSettings;
+use crate::model::{
+    default_new_term_coefficient, median_disk_radius, nominal_disk_median_radius, PhysicsSettings,
+};
 use crate::simulation::SimulationSettings;
 use crate::ui::fonts::EQUATION_FONT;
+use crate::view::SimulationCpuSnapshot;
 
 const SECTION_HEADING_SIZE: f32 = 13.0;
 const FORCE_EQUATION_FONT_SIZE: f32 = 20.0;
@@ -83,7 +86,13 @@ fn section_heading(ui: &mut egui::Ui, text: &str) {
     );
 }
 
-fn show_term_row(ui: &mut egui::Ui, index: usize, term: &mut ForceTerm, removable: bool) -> bool {
+fn show_term_row(
+    ui: &mut egui::Ui,
+    index: usize,
+    term: &mut ForceTerm,
+    removable: bool,
+    r_ref: f32,
+) -> bool {
     let mut remove = false;
 
     ui.horizontal(|ui| {
@@ -113,7 +122,10 @@ fn show_term_row(ui: &mut egui::Ui, index: usize, term: &mut ForceTerm, removabl
                     ui.selectable_value(&mut display_exponent, exp, exp.to_string());
                 }
             });
-        term.exponent = display_exponent - 1;
+        let new_exponent = display_exponent - 1;
+        // Rescale coefficient when exponent changes so radial acceleration at the
+        // typical disk radius stays continuous (reduces stars flying off on live edits).
+        term.set_exponent_with_rescale(new_exponent, r_ref);
 
         if removable && ui.button("Remove").clicked() {
             remove = true;
@@ -134,7 +146,12 @@ fn show_force_equation(ui: &mut egui::Ui, force: &ForceLaw) {
     });
 }
 
-fn force_law_section(ui: &mut egui::Ui, force: &mut ForceLaw, physics: &PhysicsSettings) {
+fn force_law_section(
+    ui: &mut egui::Ui,
+    force: &mut ForceLaw,
+    physics: &PhysicsSettings,
+    r_ref: f32,
+) {
     section_heading(ui, "Force law");
     show_force_equation(ui, force);
 
@@ -166,7 +183,7 @@ fn force_law_section(ui: &mut egui::Ui, force: &mut ForceLaw, physics: &PhysicsS
             let mut remove_at = None;
             for index in 0..term_count {
                 let term = &mut force.terms[index];
-                if show_term_row(ui, index, term, term_count > 1) {
+                if show_term_row(ui, index, term, term_count > 1, r_ref) {
                     remove_at = Some(index);
                 }
             }
@@ -188,7 +205,8 @@ fn force_law_section(ui: &mut egui::Ui, force: &mut ForceLaw, physics: &PhysicsS
                     force.terms[slot] = ForceTerm {
                         sign: 1,
                         exponent: -3,
-                        coefficient: G,
+                        // Small default so an extra term does not immediately destabilize the disk.
+                        coefficient: default_new_term_coefficient(),
                     };
                     force.term_count += 1;
                 }
@@ -235,12 +253,17 @@ fn physics_slider_group(ui: &mut egui::Ui, physics: &mut PhysicsSettings) {
     );
 }
 
-pub fn physics_panel(ui: &mut egui::Ui, settings: &mut SimulationSettings) {
+pub fn physics_panel(
+    ui: &mut egui::Ui,
+    settings: &mut SimulationSettings,
+    snapshot: &SimulationCpuSnapshot,
+) {
     physics_slider_group(ui, &mut settings.physics);
     settings.physics = settings.physics.clamped();
 
     ui.add_space(SECTION_SPACING);
-    force_law_section(ui, &mut settings.force, &settings.physics);
+    let r_ref = coefficient_reference_radius(snapshot, settings);
+    force_law_section(ui, &mut settings.force, &settings.physics, r_ref);
     settings.force = settings.force.clone().clamped();
 
     if !settings.force.is_valid() {
@@ -249,4 +272,27 @@ pub fn physics_panel(ui: &mut egui::Ui, settings: &mut SimulationSettings) {
             "At least one valid force term is required.",
         );
     }
+}
+
+/// Reference radius for live coefficient rescaling when a term exponent changes.
+///
+/// Prefer the median 3D radius of current disk stars; fall back to the nominal median
+/// from initial-condition disk radii before GPU readback is ready.
+fn coefficient_reference_radius(
+    snapshot: &SimulationCpuSnapshot,
+    settings: &SimulationSettings,
+) -> f32 {
+    if snapshot.ready {
+        let positions: Vec<[f32; 3]> = snapshot
+            .positions
+            .iter()
+            .map(|p| [p.x, p.y, p.z])
+            .collect();
+        if let Some(r) =
+            median_disk_radius(&positions, &snapshot.masses, settings.initial.n_stars as usize)
+        {
+            return r;
+        }
+    }
+    nominal_disk_median_radius(&settings.initial)
 }

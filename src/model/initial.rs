@@ -244,6 +244,17 @@ fn central_ring_orbit_speed(
     (orbit_radius * centripetal).sqrt()
 }
 
+/// Median 3D radius of an area-uniform disk annulus from initial-condition sliders.
+/// Used as a fallback reference radius when live body positions are not available yet.
+pub fn nominal_disk_median_radius(ic: &InitialConditions) -> f32 {
+    let ic = ic.clone().clamped();
+    let r_min = effective_disk_r_min(&ic, ic.n_stars as usize);
+    crate::model::force_coefficient::nominal_disk_median_radius_from_annulus(
+        r_min,
+        ic.disk_r_max,
+    )
+}
+
 /// Keep the disk outside the central star system so bulge stars stay visible.
 fn effective_disk_r_min(ic: &InitialConditions, n_stars: usize) -> f32 {
     match n_stars {

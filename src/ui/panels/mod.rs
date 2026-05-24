@@ -9,6 +9,7 @@ use crate::simulation::{
     PlaybackState, SimulationConfig, SimulationSettings, SimulationViewportRect,
     SimViewportSystems, DESKTOP_PANEL_WIDTH, MOBILE_BREAKPOINT_PX, MOBILE_PANEL_HEIGHT,
 };
+use crate::view::SimulationCpuSnapshot;
 
 use display::display_panel;
 use initial::initial_panel;
@@ -140,9 +141,10 @@ fn active_tab_panel(
     settings: &mut SimulationSettings,
     draft: &mut ControlPanelDraft,
     pending: &mut UiPendingActions,
+    snapshot: &SimulationCpuSnapshot,
 ) {
     match tab {
-        ControlTab::Physics => physics_panel(ui, settings),
+        ControlTab::Physics => physics_panel(ui, settings, snapshot),
         ControlTab::Initial => initial_panel(ui, draft),
         ControlTab::Display => {
             display_panel(ui, config, pending);
@@ -168,6 +170,7 @@ fn draw_control_panel(
     mut settings: ResMut<SimulationSettings>,
     mut draft: ResMut<ControlPanelDraft>,
     mut pending: ResMut<UiPendingActions>,
+    snapshot: Res<SimulationCpuSnapshot>,
     fps: Res<FpsDisplay>,
     mut tab: Local<ControlTab>,
 ) -> Result {
@@ -195,6 +198,7 @@ fn draw_control_panel(
                     &mut settings,
                     &mut draft,
                     &mut pending,
+                    &snapshot,
                 );
                 if mobile {
                     ui.add_space(MOBILE_BOTTOM_PADDING);

@@ -89,3 +89,6 @@ pub const FORCE_EXPONENT_MIN: i32 = -5;
 pub const FORCE_EXPONENT_MAX: i32 = 2;
 pub const FORCE_COEFFICIENT_MIN: f32 = 1e-6;
 pub const FORCE_COEFFICIENT_MAX: f32 = 1000.0;
+/// Default coefficient for a newly added force term (kept small so the extra term
+/// does not immediately destabilize the running simulation).
+pub const NEW_FORCE_TERM_COEFFICIENT: f32 = 1e-4;

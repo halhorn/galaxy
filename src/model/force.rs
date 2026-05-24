@@ -3,6 +3,7 @@ use super::constants::{
     BODY_COUNT, FORCE_COEFFICIENT_MAX, FORCE_COEFFICIENT_MIN, FORCE_EXPONENT_MAX,
     FORCE_EXPONENT_MIN, G, G_MAX, G_MIN, MIN_MASS,
 };
+use super::force_coefficient::rescale_coefficient_for_exponent_change;
 use super::physics::PhysicsSettings;
 
 pub const MAX_FORCE_TERMS: usize = 8;
@@ -12,6 +13,23 @@ pub struct ForceTerm {
     pub sign: i8,
     pub exponent: i32,
     pub coefficient: f32,
+}
+
+impl ForceTerm {
+    /// Change exponent and rescale coefficient so radial acceleration from this term
+    /// stays the same at reference radius `r_ref` (see `force_coefficient` module).
+    pub fn set_exponent_with_rescale(&mut self, new_exponent: i32, r_ref: f32) {
+        if self.exponent == new_exponent {
+            return;
+        }
+        self.coefficient = rescale_coefficient_for_exponent_change(
+            self.coefficient,
+            self.exponent,
+            new_exponent,
+            r_ref,
+        );
+        self.exponent = new_exponent;
+    }
 }
 
 /// Distance-polynomial force law: acceleration from j onto i includes `sign * c * d^N * m_j` along r.
@@ -358,6 +376,18 @@ mod tests {
         let v = force.circular_orbit_speed(r, mass, 0.0);
         let expected = (G * mass / r).sqrt();
         assert!((v - expected).abs() < 1e-4);
+    }
+
+    #[test]
+    fn set_exponent_with_rescale_updates_coefficient() {
+        let mut term = ForceTerm {
+            sign: 1,
+            exponent: -3,
+            coefficient: G,
+        };
+        term.set_exponent_with_rescale(-2, 10.0);
+        assert_eq!(term.exponent, -2);
+        assert!((term.coefficient - G / 10.0).abs() < 1e-4);
     }
 
     #[test]
