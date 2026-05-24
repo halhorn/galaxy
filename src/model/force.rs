@@ -137,12 +137,14 @@ impl ForceLaw {
             return "(empty)".to_string();
         }
 
-        self.terms
+        let terms = self
+            .terms
             .iter()
             .take(self.term_count as usize)
             .map(format_term)
             .collect::<Vec<_>>()
-            .join(" ")
+            .join(" ");
+        format!("({terms}) * Mm")
     }
 
     pub fn needs_softening_warning(&self) -> bool {
@@ -216,8 +218,8 @@ fn empty_terms() -> [ForceTerm; MAX_FORCE_TERMS] {
 }
 
 fn format_term(term: &ForceTerm) -> String {
-    // Display convention: exponent is one higher than computation (d^N along r ↔ d^(N-2) force),
-    // and sign is inverted (approaching −, receding +).
+    // Display convention: exponent is one higher than computation (d^N along r ↔ d^(N+1) in |F|),
+    // sign is inverted (approaching −, receding +). Caller suffixes `(...) * Mm`.
     let sign_char = if term.sign >= 0 { '-' } else { '+' };
     let coeff = format_coefficient(term.coefficient);
     format!("{sign_char} {coeff} * d^{}", term.exponent + 1)
@@ -343,7 +345,7 @@ mod tests {
     #[test]
     fn display_string_formats_newtonian() {
         let force = ForceLaw::newtonian(G);
-        assert_eq!(force.display_string(), "- G * d^-2");
+        assert_eq!(force.display_string(), "(- G * d^-2) * Mm");
     }
 
     #[test]
@@ -358,14 +360,14 @@ mod tests {
             terms,
             term_count: 1,
         };
-        assert_eq!(force.display_string(), "- 12.3 * d^-2");
+        assert_eq!(force.display_string(), "(- 12.3 * d^-2) * Mm");
 
         terms[0].coefficient = 0.00123456;
         let force = ForceLaw {
             terms,
             term_count: 1,
         };
-        assert_eq!(force.display_string(), "- 0.00123 * d^-2");
+        assert_eq!(force.display_string(), "(- 0.00123 * d^-2) * Mm");
     }
 
     #[test]
