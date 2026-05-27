@@ -10,14 +10,15 @@ use crate::view::sim_viewport::SIMULATION_RENDER_LAYER;
 use super::pick::{ReadbackMasses, ReadbackPositions};
 use super::snapshot::SimulationCpuSnapshot;
 
-/// Read GPU body state every N frames (pick tolerates 1–2 frame lag).
-const READBACK_INTERVAL_FRAMES: u32 = 2;
+/// Mass readback can lag pick by a frame; positions must stay in sync with the GPU render.
+const MASS_READBACK_INTERVAL_FRAMES: u32 = 2;
 
 #[derive(Resource, Default)]
 pub(crate) struct ReadbackThrottle {
-    frame: u32,
+    mass_update_frame: u32,
     positions_entity: Option<Entity>,
     masses_entity: Option<Entity>,
+    tracked_active_count: u32,
 }
 
 pub fn configure_selection_gizmos(mut config_store: ResMut<GizmoConfigStore>) {
@@ -38,14 +39,14 @@ pub fn sync_readback_entities(
     settings: Res<SimulationSettings>,
     mut throttle: ResMut<ReadbackThrottle>,
 ) {
-    throttle.frame = throttle.frame.wrapping_add(1);
-    let active_count = settings.active_count() as u64;
-    let positions_bytes = active_count * 16;
-    let masses_bytes = active_count * 4;
+    let active_count = settings.active_count();
+    let positions_bytes = active_count as u64 * 16;
+    let masses_bytes = active_count as u64 * 4;
 
-    if throttle.frame % READBACK_INTERVAL_FRAMES != 0 {
+    if throttle.tracked_active_count != active_count {
         remove_readback_entities(&mut commands, &mut throttle);
-        return;
+        throttle.tracked_active_count = active_count;
+        throttle.mass_update_frame = 0;
     }
 
     if throttle.positions_entity.is_none() {
@@ -112,8 +113,14 @@ fn on_positions_readback(
 fn on_masses_readback(
     trigger: On<ReadbackComplete>,
     mut snapshot: ResMut<SimulationCpuSnapshot>,
+    mut throttle: ResMut<ReadbackThrottle>,
     settings: Res<SimulationSettings>,
 ) {
+    throttle.mass_update_frame = throttle.mass_update_frame.wrapping_add(1);
+    if throttle.mass_update_frame % MASS_READBACK_INTERVAL_FRAMES != 0 {
+        return;
+    }
+
     let active_count = settings.active_count() as usize;
     snapshot.masses = parse_masses_readback(&trigger.event().data, active_count);
     if snapshot.positions.len() == active_count && snapshot.masses.len() == active_count {

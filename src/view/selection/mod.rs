@@ -5,7 +5,9 @@ mod snapshot;
 
 pub use snapshot::SimulationCpuSnapshot;
 
+use bevy::camera::CameraUpdateSystems;
 use bevy::prelude::*;
+use bevy_egui::EguiPostUpdateSet;
 
 use marker::draw_selection_marker;
 use pick::click_pick_body;
@@ -22,6 +24,12 @@ impl Plugin for SelectionPlugin {
             .add_systems(PostStartup, setup_readback)
             .add_systems(Update, on_spawned_seed_snapshot)
             .add_systems(Update, sync_readback_entities)
-            .add_systems(Update, (click_pick_body, draw_selection_marker));
+            .add_systems(Update, draw_selection_marker)
+            .add_systems(
+                PostUpdate,
+                click_pick_body
+                    .after(EguiPostUpdateSet::EndPass)
+                    .after(CameraUpdateSystems),
+            );
     }
 }

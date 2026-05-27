@@ -45,6 +45,59 @@ pub fn fallback_logical_rect(window: &Window) -> Rect {
 /// WebGPU / Metal `max_texture_dimension_2d` on many Apple GPUs.
 const MAX_VIEWPORT_PHYSICAL: u32 = 8192;
 
+/// Whether `point` (window logical coords) lies in the 3D simulation viewport.
+pub fn point_in_simulation_viewport(
+    point: Vec2,
+    viewport_rect: &SimulationViewportRect,
+    _camera: &Camera,
+) -> bool {
+    viewport_rect.logical.contains(point)
+}
+
+/// Project a world position to window logical coordinates using the egui simulation rect.
+///
+/// Prefer this over [`Camera::world_to_viewport`] when the camera viewport is driven by
+/// [`SimulationViewportRect`]; Bevy's built-in helper can disagree on the logical rect.
+pub fn world_to_viewport_in_rect(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    world: Vec3,
+    viewport: Rect,
+) -> Option<Vec2> {
+    let ndc = camera.world_to_ndc(camera_transform, world)?;
+    if !(0.0..=1.0).contains(&ndc.z) {
+        return None;
+    }
+    Some(ndc_to_viewport_point(ndc.truncate(), viewport))
+}
+
+fn ndc_to_viewport_point(ndc_xy: Vec2, viewport: Rect) -> Vec2 {
+    let mut ndc = ndc_xy;
+    ndc.y = -ndc.y;
+    (ndc + Vec2::ONE) / 2.0 * viewport.size() + viewport.min
+}
+
+fn viewport_point_to_ndc(cursor: Vec2, viewport: Rect) -> Vec2 {
+    let rel = (cursor - viewport.min) / viewport.size();
+    let mut ndc = rel * 2.0 - Vec2::ONE;
+    ndc.y = -ndc.y;
+    ndc
+}
+
+/// World-space ray through `cursor` using the same viewport mapping as [`world_to_viewport_in_rect`].
+pub fn pick_ray_in_rect(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    cursor: Vec2,
+    viewport: Rect,
+) -> Option<Ray3d> {
+    let ndc_xy = viewport_point_to_ndc(cursor, viewport);
+    let origin = camera.ndc_to_world(camera_transform, ndc_xy.extend(1.0))?;
+    let far = camera.ndc_to_world(camera_transform, ndc_xy.extend(f32::EPSILON))?;
+    let direction = Dir3::new(far - origin).ok()?;
+    Some(Ray3d { origin, direction })
+}
+
 pub fn logical_rect_to_camera_viewport(rect: Rect, window: &Window) -> Viewport {
     let scale = window.resolution.scale_factor();
 

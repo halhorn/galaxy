@@ -7,7 +7,9 @@ use bevy::{
 use bevy_egui::{EguiPreUpdateSet, EguiPrimaryContextPass};
 use bevy_panorbit_camera::{EguiWantsFocus, PanOrbitCamera, PanOrbitCameraSystemSet};
 
-use crate::simulation::{SimulationRestartSet, SimulationViewportRect};
+use crate::simulation::{
+    point_in_simulation_viewport, SimulationRestartSet, SimulationViewportRect,
+};
 use crate::view::SimulationCamera;
 
 use super::pivot::zoom_pivot_on_focus_plane;
@@ -159,20 +161,6 @@ fn touch_pinch_delta(touches: &Touches, state: &mut TouchPinchState) -> Option<(
     state.prev_distance = Some(distance);
 
     (pinch_pixel.abs() > f32::EPSILON).then_some((midpoint, pinch_pixel))
-}
-
-fn point_in_simulation_viewport(
-    point: Vec2,
-    viewport_rect: &SimulationViewportRect,
-    camera: &Camera,
-) -> bool {
-    if !viewport_rect.logical.contains(point) {
-        return false;
-    }
-
-    camera
-        .logical_viewport_rect()
-        .is_none_or(|rect| rect.contains(point))
 }
 
 pub struct CameraControlsPlugin;
