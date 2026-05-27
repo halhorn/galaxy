@@ -37,7 +37,7 @@ impl SimulationConfig {
 
     pub fn clamped(self) -> Self {
         Self {
-            time_scale: self.time_scale.clamp(0.25, 4.0),
+            time_scale: self.time_scale.clamp(0.01, 10.0),
             star_visual_scale: self
                 .star_visual_scale
                 .clamp(STAR_VISUAL_SCALE_MIN, STAR_VISUAL_SCALE_MAX),

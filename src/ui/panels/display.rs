@@ -23,7 +23,7 @@ pub fn display_panel(
         help,
         HelpId::TimeScale,
         "Time scale",
-        egui::Slider::new(&mut config.time_scale, 0.25..=4.0).logarithmic(true),
+        egui::Slider::new(&mut config.time_scale, 0.01..=10.0).logarithmic(true),
     );
 
     slider_row(
